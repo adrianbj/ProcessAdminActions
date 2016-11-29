@@ -1,0 +1,355 @@
+<?php
+
+/**
+ * ProcessWire Admin Actions.
+ * by Adrian Jones
+ *
+ * ProcessWire 3.x
+ * Copyright (C) 2011 by Ryan Cramer
+ * Licensed under GNU/GPL v2, see LICENSE.TXT
+ *
+ * http://www.processwire.com
+ * http://www.ryancramer.com
+ *
+ */
+
+class ProcessAdminActions extends Process implements Module, ConfigurableModule {
+
+    public static function getModuleInfo() {
+        return array(
+            'title' => 'Admin Actions',
+            'summary' => 'Control panel for running various admin actions',
+            'author' => 'Adrian Jones',
+            'version' => 1,
+            'singular' => true,
+            'autoload' => false,
+            'icon'     => 'cog',
+            'nav' => array(
+                array(
+                    'url' => 'restore/',
+                    'label' => 'Restore',
+                    'icon' => 'reply'
+                )
+            ),
+            'page' => array(
+                'name' => 'admin-actions',
+                'parent' => 'setup',
+                'title' => 'Admin Actions'
+            ),
+            // name of permission required of users to execute this Process
+            'permission' => 'admin-actions',
+            // automatically installed permissions
+            'permissions' => array(
+                'admin-actions' => 'Run AdminActions actions'
+            )
+        );
+    }
+
+
+    /**
+     * Data as used by the get/set functions
+     *
+     */
+    protected $data = array();
+    protected $actions = array();
+    protected $adminActionsCacheDir;
+    protected $dbBackupFilename;
+
+
+   /**
+     * Default configuration for module
+     *
+     */
+    static public function getDefaultData() {
+            return array(
+
+            );
+    }
+
+    /**
+     * Populate the default config data
+     *
+     */
+    public function __construct() {
+        foreach(self::getDefaultData() as $key => $value) {
+            $this->$key = $value;
+        }
+
+        $this->adminActionsCacheDir = $this->config->paths->cache . 'AdminActions/';
+        $this->dbBackupFilename = 'AdminActionsBackup.sql';
+    }
+
+
+    public function init() {
+        parent::init();
+
+        if($this->input->get->action) {
+            require_once $this->getActionPath($this->input->get->action);
+            $this->action = new $this->input->get->action;
+        }
+    }
+
+
+    /**
+     * Executed when root url for module is accessed
+     *
+     */
+    public function ___execute() {
+        $form = $this->buildSelectForm();
+        if($this->input->post->submit) {
+            return $this->processSelectForm($form);
+        }
+        else {
+            return $form->render();
+        }
+    }
+
+    /**
+     * Executed when ./options/ url for module is accessed
+     *
+     */
+    public function ___executeOptions() {
+
+        $out = '<h2>'.preg_replace('/(?<=\\w)(?=[A-Z])/'," $1", $this->action->className).'</h2>';
+
+        if(method_exists($this->action,'checkRequirements') && !$this->action->checkRequirements()) {
+            $out .= '<div style="width: 100%; padding:1px 10px; background: #E92003; color: #FFFFFF"><p>Sorry, this action cannot proceed.</p><p>' . $this->action->requirementsMessage . '</p></div>';
+        }
+        else {
+            $form = $this->buildOptionsForm();
+            if($this->input->post->submit) {
+                $out .= $this->processOptionsForm($form);
+            } else {
+                $out .= $form->render();
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * Executed when ./execute/ url for module is accessed
+     *
+     */
+    public function ___executeExecute() {
+        $form = $this->buildOptionsForm();
+        $form->processInput($this->input->post);
+
+        // build up $options array to pass to the action's executeAction method
+        $options = array();
+        foreach($this->input->post as $field => $value) {
+            if($form->get($field)) $options[$field] = $form->get($field)->value;
+        }
+
+        // backup database before executing action
+        if (!file_exists($this->adminActionsCacheDir)) wireMkdir($this->adminActionsCacheDir);
+
+        $backup = new WireDatabaseBackup($this->adminActionsCacheDir);
+        $backup->setDatabase($this->database);
+        $backup->setDatabaseConfig($this->config);
+        $file = $backup->backup(array('filename' => $this->dbBackupFilename));
+
+        $restoreDbCode =
+        "<?php\n" .
+        "if(file_exists('".$this->adminActionsCacheDir.$this->dbBackupFilename."')) {\n" .
+            "\t\$db = new PDO('mysql:host={$this->config->dbHost};dbname={$this->config->dbName}', '{$this->config->dbUser}', '{$this->config->dbPass}');\n" .
+            "\t\$sql = file_get_contents('" . $this->adminActionsCacheDir . $this->dbBackupFilename . "');\n" .
+            "\t\$qr = \$db->query(\$sql);\n" .
+        "}\n" .
+        "if(isset(\$qr) && \$qr) {\n" .
+            "\techo 'The database was successfully restored.';\n" .
+        "}\n" .
+        "else {\n" .
+        "\techo 'Sorry, there was a problem and the database could not be restored.';\n" .
+        "}";
+
+        if(!file_put_contents($this->adminActionsCacheDir . 'restoredb.php', $restoreDbCode, LOCK_EX)) throw new WireException("Unable to write file: " . $this->adminActionsCacheDir . 'restoredb.php');
+
+        // execute action and render output
+        if($this->action->executeAction($options) && !$form->getErrors()) {
+
+            $restoreLink = '<br /><div style="width: 100%; padding:1px 10px; background: #FF9933"><p>If you find a problem with the changes, you can <a href="./restore/">restore</a> the entire database.</p></div>';
+            return '<div style="width: 100%; padding:1px 10px; background: #D1F486"><p>The '.$this->action->className.' action was completed successfully.</p><p>' . $this->action->successMessage . '</p></div>' . $restoreLink;
+        }
+        else {
+            $this->error('Sorry, the '.$this->action->className.' action could not be completed successfully.');
+            return '<div style="width: 100%; padding:1px 10px; background: #E92003; color: #FFFFFF"><p>' . $this->action->failureMessage . '</p></div><br /><br />' . $form->render();
+        }
+    }
+
+
+    /**
+     * Executed when ./restore/ url for module is accessed
+     *
+     */
+    public function ___executeRestore() {
+        $backup = new WireDatabaseBackup($this->adminActionsCacheDir);
+        $backup->setDatabase($this->database);
+        $backup->setDatabaseConfig($this->config);
+
+        $success = $backup->restore($this->adminActionsCacheDir.$this->dbBackupFilename);
+        if($success) {
+            $this->message("Database successfully restored.");
+        }
+        else {
+            $this->error("Sorry, there was a problem and the database could not be restored.");
+        }
+        $this->session->redirect('../');
+    }
+
+
+    /**
+     * Build the Select form
+     *
+     */
+    private function buildSelectForm() {
+
+        $form = $this->modules->get("InputfieldForm");
+        $form->method = 'post';
+
+        $f = $this->modules->get("InputfieldSelect");
+        $f->name = 'action';
+        $f->label = 'Choose Action';
+        $f->required = true;
+        ksort($this->data);
+        foreach($this->data as $action => $roles) {
+            if($this->getActionPath($action) && count(array_intersect($roles, $this->user->roles->each("id"))) !== 0) {
+                $f->addOption($action, preg_replace('/(?<=\\w)(?=[A-Z])/'," $1", $action));
+            }
+        }
+        $form->add($f);
+
+        $f = $this->modules->get("InputfieldSubmit");
+        $f->name = 'submit';
+        $f->value = 'Go To Options';
+        $form->add($f);
+
+        return $form;
+    }
+
+    /**
+     * Process the form and populate session variables with the results
+     *
+     */
+    private function processSelectForm(InputfieldForm $form) {
+
+        $form->processInput($this->input->post);
+        if(count($form->getErrors())) {
+            $this->error($form->getErrors());
+            return $form->render();
+        }
+        else {
+            $this->session->redirect('./options?action='.$form->get("action")->value);
+        }
+
+    }
+
+    /**
+     * Build the Options form
+     *
+     */
+    private function buildOptionsForm() {
+
+        $form = $this->modules->get("InputfieldForm");
+        $form->method = 'post';
+        $form->action = './execute?action='.$this->action->className;
+
+        $f = $this->modules->get("InputfieldMarkup");
+        $f->name = 'details';
+        $f->label = 'Details';
+        $f->description = $this->action->description;
+        $f->notes = $this->action->notes;
+        $form->add($f);
+
+        if(method_exists($this->action,'defineOptions')) $form->add($this->action->defineOptions());
+
+        $f = $this->modules->get("InputfieldSubmit");
+        $f->name = 'submit';
+        $f->value = 'Execute Action';
+        $form->add($f);
+
+        return $form;
+
+    }
+
+
+    private function getActionPath($className) {
+        if(file_exists($actionPath = __DIR__ . '/'.$className.'.action.php')) {
+            return $actionPath;
+        }
+        elseif(file_exists($actionPath = $this->config->paths->templates.'AdminActions/'.$className.'.action.php')) {
+            return $actionPath;
+        }
+        else {
+            return false;
+        }
+    }
+
+
+    private function getActions($folderPath) {
+        foreach(new \DirectoryIterator($folderPath) as $file) {
+            if($file->isDot()) continue;
+            if(substr($file->getBasename(), 0, 1) == '.') continue;
+            if($file->isFile()) {
+                $basename = $file->getBasename();
+                if(!strpos($basename, '.action')) continue;
+                if(!preg_match('/^([A-Z][a-zA-Z0-9_]+)\.action\.php$/', $basename, $matches)) continue;
+                $className = $matches[1];
+                require_once $this->getActionPath($className);
+                $action = new $className;
+                $this->actions[$className]['name'] = $className;
+                $this->actions[$className]['description'] = $action->description;
+                $this->actions[$className]['notes'] = $action->notes;
+            }
+        }
+    }
+
+
+    /**
+     * Return an InputfieldsWrapper of Inputfields used to configure the class
+     *
+     * @param array $data Array of config values indexed by field name
+     * @return InputfieldsWrapper
+     *
+     */
+    public function getModuleConfigInputfields(array $data) {
+
+        $data = array_merge(self::getDefaultData(), $data);
+
+        $rolesOptions = array();
+        foreach(wire('roles')->find("name!=guest") as $role) $rolesOptions[$role->id] = $role->name;
+
+        $wrapper = new InputfieldWrapper();
+
+        self::getActions(__DIR__);
+        if(file_exists($customActionsDir = wire('config')->paths->templates.'AdminActions/')) {
+            self::getActions($customActionsDir);
+        }
+
+        $f = wire('modules')->get("InputfieldMarkup");
+        $f->name = 'instructions';
+        $f->label = __('Choose roles that will be able to use each action');
+        $f->description = __('Remember that the roles must also have the "admin-actions" permission to use this module at all.');
+        $wrapper->add($f);
+
+        foreach($this->actions as $action => $values) {
+            $f = wire('modules')->get("InputfieldAsmSelect");
+            $f->attr('name', $values['name']);
+            $f->label = preg_replace('/(?<=\\w)(?=[A-Z])/'," $1", $values['name']);
+            $f->description = $values['description'];
+            $f->notes = $values['notes'];
+            $f->options = $rolesOptions;
+            $f->columnWidth = 20;
+            $f->setAsmSelectOption('sortable', false);
+            $f->value = isset($data[$values['name']]) ? $data[$values['name']] : array(wire('roles')->get('superuser')->id);
+            $wrapper->add($f);
+            // prepare initial superuser role for each action for initial module install
+            $initialData[$values['name']] = array(wire('roles')->get('superuser')->id);
+        }
+
+        // save superuser role to each action during initial module install when $data is empty
+        if(!$data) wire('modules')->saveModuleConfigData(wire('modules')->get("ProcessAdminActions"), $initialData);
+
+        return $wrapper;
+    }
+
+}

@@ -1,2 +1,4 @@
-# ProcessAdminActions
-ProcessWire control panel for running various admin actions
+# Admin Actions #
+
+Processwire module for grabbing content from various content providers.
+
