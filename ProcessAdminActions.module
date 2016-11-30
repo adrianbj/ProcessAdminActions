@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => 3,
+            'version' => 4,
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -28,7 +28,8 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                 array(
                     'url' => 'restore/',
                     'label' => 'Restore',
-                    'icon' => 'reply'
+                    'icon' => 'reply',
+                    'permission' => 'admin-actions-restore'
                 )
             ),
             'page' => array(
@@ -40,7 +41,8 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'permission' => 'admin-actions',
             // automatically installed permissions
             'permissions' => array(
-                'admin-actions' => 'Run selected AdminActions actions'
+                'admin-actions' => 'Run selected AdminActions actions',
+                'admin-actions-restore' => 'Run AdminActions restore feature'
             )
         );
     }
@@ -100,7 +102,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             return $this->processSelectForm($form);
         }
         else {
-            return $form->render();
+            return is_string($form) ? $form : $form->render();
         }
     }
 
@@ -182,18 +184,23 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
      *
      */
     public function ___executeRestore() {
-        $backup = new WireDatabaseBackup($this->adminActionsCacheDir);
-        $backup->setDatabase($this->database);
-        $backup->setDatabaseConfig($this->config);
+        if($this->user->hasRole('admin-actions-restore')) {
+            $backup = new WireDatabaseBackup($this->adminActionsCacheDir);
+            $backup->setDatabase($this->database);
+            $backup->setDatabaseConfig($this->config);
 
-        $success = $backup->restore($this->adminActionsCacheDir.$this->dbBackupFilename);
-        if($success) {
-            $this->message("Database successfully restored.");
+            $success = $backup->restore($this->adminActionsCacheDir.$this->dbBackupFilename);
+            if($success) {
+                $this->message("Database successfully restored.");
+            }
+            else {
+                $this->error("Sorry, there was a problem and the database could not be restored.");
+            }
+            $this->session->redirect('../');
         }
         else {
-            $this->error("Sorry, there was a problem and the database could not be restored.");
+            return 'Sorry, you do not have permission to run the restore feature.';
         }
-        $this->session->redirect('../');
     }
 
 
@@ -229,6 +236,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         // if more actions in folders than in config, display a warning
         if(count($this->actions) > count($this->data)) $this->error("You have new actions - please visit the module config settings, adjust approved roles, and click Submit to refresh this list.");
 
+        $actionsCount=0;
         foreach($this->data as $action => $info) {
             if($this->getActionPath($action) && count(array_intersect($info['roles'], $this->user->roles->each("id"))) !== 0) {
                 $row = array(
@@ -239,12 +247,18 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
                 );
                 $table->row($row);
+                $actionsCount++;
             }
         }
         $f->attr('value', $table->render());
         $form->add($f);
 
-        return $form;
+        if($actionsCount > 0) {
+            return $form;
+        }
+        else {
+            return 'Sorry, you do not have permission to run any actions.';
+        }
     }
 
     /**
