@@ -43,7 +43,7 @@ class TemplateRolesBatcher extends ProcessAdminActions {
             array(
                 'name' => 'addOrRemove',
                 'label' => 'Add or Remove',
-                'description' => 'Select whether you want to add or remove the selected access/roles or fields from the templates',
+                'description' => 'Select whether you want to add or remove the selected access/roles from the templates',
                 'type' => 'radios',
                 'options' => array(
                     'add' => 'Add',

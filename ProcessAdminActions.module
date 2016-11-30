@@ -218,8 +218,8 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             __('Notes'),
             __('Author')
         ));
-        ksort($this->data);
 
+        ksort($this->data);
         // get main actions in module folder
         $this->getActions(__DIR__, false);
         // get private actions from /site/templates/adminActions folder
@@ -227,7 +227,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             $this->getActions($customActionsDir, false);
         }
         // if more actions in folders than in config, display a warning
-        if(count($this->actions) > count($this->data)) $this->error("You have new actions - please visit the module config settings and click Submit to refresh this list.");
+        if(count($this->actions) > count($this->data)) $this->error("You have new actions - please visit the module config settings, adjust approved roles, and click Submit to refresh this list.");
 
         foreach($this->data as $action => $info) {
             if($this->getActionPath($action) && count(array_intersect($info['roles'], $this->user->roles->each("id"))) !== 0) {

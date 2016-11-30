@@ -31,7 +31,6 @@ class DeleteUnusedTemplates extends ProcessAdminActions {
         $count = 0;
         foreach($options['templates'] as $template) {
             $t = $this->templates->get($template);
-            $t = $this->templates->get($t);
             $this->templates->delete($t);
             $name = $t->name;
             $fg = $this->fieldgroups->get($name);
