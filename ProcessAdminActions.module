@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => 5,
+            'version' => 6,
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -146,20 +146,48 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         if(!$this->hasPermission) return $this->noPermissionMessage;
 
-        $form = $this->buildOptionsForm();
+        $actionTitle = '<h2>'.preg_replace('/(?<=\\w)(?=[A-Z])/'," $1", $this->action->className).'</h2>';
 
+        $form = $this->buildOptionsForm();
         // build up $options array to pass to the action's executeAction method
         $options = array();
-        if($this->input->get->execute == 1) {
+        // If the number of URL parameters (get) matches the number of required option fields in the form,
+        // then we want to execute with the url parameters.
+        // Note that the URL ($input->get) contains the additional "action", so start with $i=1
+        $i=1;
+        foreach($form as $field) {
+            if($field->hasClass('required')) $i++;
+        }
+        if(count($this->input->get) === $i) {
+            $urlFields = new WireInputData();
             foreach($this->input->get as $field => $value) {
-                if(strpos($value, '|') !== false) $value = explode('|', $value);
-                $options[$field] = $value;
+                if($field === 'action') continue; // exclude the "action" url parameter
+                // if field expects an array (multiple) then we need to convert the URL parameter
+                if($form->get($field)->multiple) {
+                    if(strpos($value, '|') !== false) {
+                        $value = explode('|', $value);
+                    }
+                    else {
+                        $value = array($value);
+                    }
+                }
+                $urlFields[$field] = $value;
             }
+            // disable CSRF because we are using GET data
+            $form->protectCSRF = false;
+            $form->processInput($urlFields);
+            foreach($form as $field) {
+                $value = $form->get($field->name)->value;
+                $options[$field->name] = $value;
+            }
+        }
+        elseif(count($this->input->post) === 0) {
+            return $actionTitle . '<p>Some required form options are missing.</p>';
         }
         else {
             $form->processInput($this->input->post);
-            foreach($this->input->post as $field => $value) {
-                if($form->get($field)) $options[$field] = $form->get($field)->value;
+            foreach($form as $field) {
+                $options[$field->name] = $form->get($field->name)->value;
             }
         }
 
@@ -189,14 +217,14 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         // execute action and render output
         if($this->action->executeAction($options) && !$form->getErrors()) {
-
             $restoreLink = '<br /><div class="adminActionsWarning"><p>If you find a problem with the changes, you can <a href="./restore/">restore</a> the entire database.</p></div>';
-            return '<div class="adminActionsSuccess"><p>The '.$this->action->className.' action was completed successfully.</p><p>' . $this->action->successMessage . '</p></div>' . $restoreLink;
+            return $actionTitle . '<div class="adminActionsSuccess"><p>The '.$this->action->className.' action was completed successfully.</p><p>' . $this->action->successMessage . '</p></div>' . $restoreLink;
         }
         else {
             $this->error('Sorry, the '.$this->action->className.' action could not be completed successfully.');
-            return '<div class="adminActionsError"><p>' . $this->action->failureMessage . '</p></div><br /><br />' . $form->render();
+            return $actionTitle . ($this->action->failureMessage ? '<div class="adminActionsError"><p>' . $this->action->failureMessage . '</p></div><br /><br />' : '') . $form->render();
         }
+
     }
 
 

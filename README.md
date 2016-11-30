@@ -95,6 +95,20 @@ There is one additional method that I didn't outline called: checkRequirements()
 
 At the end of the executeAction() method you can populate $this->successMessage, or $this->failureMessage which will be returned after the action has finished.
 
+#### Populating options via URL parameters
+
+You can also populate the option parameters via URL parameters. You should split multiple values with a "|" character.
+
+You can either just pre-populate options:
+```
+http://mysite.dev/processwire/setup/admin-actions/options?action=TemplateFieldsBatcher&templates=29|56&fields=219&addOrRemove=add
+```
+or you can execute immediately:
+```
+http://mysite.dev/processwire/setup/admin-actions/execute?action=TemplateFieldsBatcher&templates=29|56&fields=219&addOrRemove=add
+```
+Note the "options" vs "execute" as the last path before the parameters.
+
 #### Automatic Backup / Restore
 
 Before any action is executed, a full database backup is automatically made. You have a few options to run a restore if needed:
