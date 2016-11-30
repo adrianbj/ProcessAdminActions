@@ -14,7 +14,7 @@ class DeleteUnusedTemplates extends ProcessAdminActions {
     protected function defineOptions() {
 
         $templateOptions = array();
-        foreach($this->templates as $template) if(!$template->getNumPages()) $templateOptions[$template->id] = $template->label ? $template->label . ' (' . $template->name . ')' : $template->name;
+        foreach($this->templates as $template) if(!$template->getNumPages()) $templateOptions[$template->id] = $template->label ? $template->name . ' (' . $template->label . ')' : $template->name;
 
         return array(
             array(

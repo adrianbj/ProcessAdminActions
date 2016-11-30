@@ -23,7 +23,7 @@ A new action file can be as simple as this:
 ```
 class UnpublishAboutPage extends ProcessAdminActions {
 
-    protected function executeAction($options) {
+    protected function executeAction() {
         $p = $this->pages->get('/about/');
         $p->addStatus(Page::statusUnpublished);
         $p->save();

@@ -15,7 +15,7 @@ class TemplateFieldsBatcher extends ProcessAdminActions {
         $fieldOptions = array();
         foreach($this->fields as $field) {
             if ($field->flags & Field::flagSystem || $field->flags & Field::flagPermanent) continue;
-            $fieldOptions[$field->id] = $field->label ? $field->label . ' (' . $field->name . ')' : $field->name;
+            $fieldOptions[$field->id] = $field->name;
         }
 
         return array(

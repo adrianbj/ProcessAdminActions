@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => 4,
+            'version' => 5,
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -54,8 +54,10 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
      */
     protected $data = array();
     protected $actions = array();
+    protected $hasPermission = false;
     protected $adminActionsCacheDir;
     protected $dbBackupFilename;
+    protected $noPermissionMessage = 'Sorry, you do not have permission to use this action.';
 
 
    /**
@@ -86,8 +88,14 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         parent::init();
 
         if($this->input->get->action) {
-            require_once $this->getActionPath($this->input->get->action);
-            $this->action = new $this->input->get->action;
+            if(count(array_intersect($this->data[$this->input->get->action]['roles'], $this->user->roles->each("id"))) !== 0) {
+                require_once $this->getActionPath($this->input->get->action);
+                $this->action = new $this->input->get->action;
+                $this->hasPermission = true;
+            }
+            else {
+                return $this->noPermissionMessage;
+            }
         }
     }
 
@@ -112,6 +120,8 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
      */
     public function ___executeOptions() {
 
+        if(!$this->hasPermission) return $this->noPermissionMessage;
+
         $out = '<h2>'.preg_replace('/(?<=\\w)(?=[A-Z])/'," $1", $this->action->className).'</h2>';
 
         if(method_exists($this->action,'checkRequirements') && !$this->action->checkRequirements()) {
@@ -133,13 +143,24 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
      *
      */
     public function ___executeExecute() {
+
+        if(!$this->hasPermission) return $this->noPermissionMessage;
+
         $form = $this->buildOptionsForm();
-        $form->processInput($this->input->post);
 
         // build up $options array to pass to the action's executeAction method
         $options = array();
-        foreach($this->input->post as $field => $value) {
-            if($form->get($field)) $options[$field] = $form->get($field)->value;
+        if($this->input->get->execute == 1) {
+            foreach($this->input->get as $field => $value) {
+                if(strpos($value, '|') !== false) $value = explode('|', $value);
+                $options[$field] = $value;
+            }
+        }
+        else {
+            $form->processInput($this->input->post);
+            foreach($this->input->post as $field => $value) {
+                if($form->get($field)) $options[$field] = $form->get($field)->value;
+            }
         }
 
         // backup database before executing action
@@ -211,6 +232,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
     private function buildSelectForm() {
 
         $form = $this->modules->get("InputfieldForm");
+        $form->name = 'select';
         $form->method = 'post';
 
         $f = wire('modules')->get("InputfieldMarkup");
@@ -285,6 +307,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
     private function buildOptionsForm() {
 
         $form = $this->modules->get("InputfieldForm");
+        $form->name = 'options';
         $form->method = 'post';
         $form->action = './execute?action='.$this->action->className;
 
@@ -301,6 +324,14 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $f->name = 'submit';
         $f->value = 'Execute Action';
         $form->add($f);
+
+        //preset any fields provided as URL parameters
+        foreach($form as $field) {
+            if($fieldValue = $this->input->get($field->name)) {
+                if (strpos($fieldValue, '|') !== false) $fieldValue = explode('|', $fieldValue);
+                $form->get($field->name)->value = $fieldValue;
+            }
+        }
 
         return $form;
 

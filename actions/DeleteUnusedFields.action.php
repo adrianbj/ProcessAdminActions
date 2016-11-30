@@ -16,7 +16,7 @@ class DeleteUnusedFields extends ProcessAdminActions {
         $fieldOptions = array();
         foreach($this->fields as $field) {
             if ($field->flags & Field::flagSystem || $field->flags & Field::flagPermanent) continue;
-            if(count($field->getFieldgroups()) === 0) $fieldOptions[$field->id] = $field->label ? $field->label . ' (' . $field->name . ')' : $field->name;
+            if(count($field->getFieldgroups()) === 0) $fieldOptions[$field->id] = $field->label ? $field->name . ' (' . $field->label . ')' : $field->name;
         }
 
         return array(
