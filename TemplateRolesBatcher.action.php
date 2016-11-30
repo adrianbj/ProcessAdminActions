@@ -2,7 +2,9 @@
 
 class TemplateRolesBatcher extends ProcessAdminActions {
 
-    protected $description = 'Lets you add or remove access permissions: Edit, Create, and Add, for multiple roles and multiple templates at once.';
+    protected $description = 'Lets you add or remove access permissions, for multiple roles and multiple templates at once.';
+    protected $notes = 'Permission options are: Edit, Create, and Add.';
+    protected $author = 'Adrian Jones';
 
     protected function defineOptions() {
 

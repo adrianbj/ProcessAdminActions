@@ -4,6 +4,7 @@ class CopyFieldContentToOtherPage extends ProcessAdminActions {
 
     protected $description = 'Copies the content from a field on one page to the same field on another page.';
     protected $notes = 'This can be useful if you decide to restructure where certain content lives on the site.';
+    protected $author = 'Adrian Jones';
 
     protected function defineOptions() {
         return array(

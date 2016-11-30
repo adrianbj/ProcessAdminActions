@@ -1,0 +1,37 @@
+table.AdminDataList.adminactions td:first-child, table.AdminDataList.adminactions th:first-child {
+    width: 20% !important;
+}
+
+table.AdminDataList.adminactions td:nth-child(2), table.AdminDataList.adminactions th:nth-child(2) {
+    width: 35% !important;
+}
+
+table.AdminDataList.adminactions td:nth-child(3), table.AdminDataList.adminactions th:nth-child(3) {
+    width: 35% !important;
+}
+
+table.AdminDataList.adminactions td:nth-child(4), table.AdminDataList.adminactions th:nth-child(3) {
+    width: 10% !important;
+}
+
+.adminActionsError, .adminActionsWarning, .adminActionsSuccess {
+    width: 100%;
+    padding:1px 10px;
+}
+
+.adminActionsError {
+    background: #E92003;
+    color: #FFFFFF;
+}
+
+.adminActionsWarning {
+    background: #FF9933;
+}
+
+.adminActionsSuccess {
+    background: #D1F486;
+}
+
+.adminActionsAuthor {
+    font-size: 13px;
+}

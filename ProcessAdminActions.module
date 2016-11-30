@@ -113,7 +113,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $out = '<h2>'.preg_replace('/(?<=\\w)(?=[A-Z])/'," $1", $this->action->className).'</h2>';
 
         if(method_exists($this->action,'checkRequirements') && !$this->action->checkRequirements()) {
-            $out .= '<div style="width: 100%; padding:1px 10px; background: #E92003; color: #FFFFFF"><p>Sorry, this action cannot proceed.</p><p>' . $this->action->requirementsMessage . '</p></div>';
+            $out .= '<div class="adminActionsError"><p>Sorry, this action cannot proceed.</p><p>' . $this->action->requirementsMessage . '</p></div>';
         }
         else {
             $form = $this->buildOptionsForm();
@@ -167,12 +167,12 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         // execute action and render output
         if($this->action->executeAction($options) && !$form->getErrors()) {
 
-            $restoreLink = '<br /><div style="width: 100%; padding:1px 10px; background: #FF9933"><p>If you find a problem with the changes, you can <a href="./restore/">restore</a> the entire database.</p></div>';
-            return '<div style="width: 100%; padding:1px 10px; background: #D1F486"><p>The '.$this->action->className.' action was completed successfully.</p><p>' . $this->action->successMessage . '</p></div>' . $restoreLink;
+            $restoreLink = '<br /><div class="adminActionsWarning"><p>If you find a problem with the changes, you can <a href="./restore/">restore</a> the entire database.</p></div>';
+            return '<div class="adminActionsSuccess"><p>The '.$this->action->className.' action was completed successfully.</p><p>' . $this->action->successMessage . '</p></div>' . $restoreLink;
         }
         else {
             $this->error('Sorry, the '.$this->action->className.' action could not be completed successfully.');
-            return '<div style="width: 100%; padding:1px 10px; background: #E92003; color: #FFFFFF"><p>' . $this->action->failureMessage . '</p></div><br /><br />' . $form->render();
+            return '<div class="adminActionsError"><p>' . $this->action->failureMessage . '</p></div><br /><br />' . $form->render();
         }
     }
 
@@ -206,21 +206,42 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $form = $this->modules->get("InputfieldForm");
         $form->method = 'post';
 
-        $f = $this->modules->get("InputfieldSelect");
-        $f->name = 'action';
-        $f->label = 'Choose Action';
-        $f->required = true;
+        $f = wire('modules')->get("InputfieldMarkup");
+        $f->attr('name', 'table');
+        $table = wire('modules')->get("MarkupAdminDataTable");
+        $table->setEncodeEntities(false);
+        $table->setSortable(true);
+        $table->setClass('adminactions');
+        $table->headerRow(array(
+            __('Title'),
+            __('Description'),
+            __('Notes'),
+            __('Author')
+        ));
         ksort($this->data);
-        foreach($this->data as $action => $roles) {
-            if($this->getActionPath($action) && count(array_intersect($roles, $this->user->roles->each("id"))) !== 0) {
-                $f->addOption($action, preg_replace('/(?<=\\w)(?=[A-Z])/'," $1", $action));
+
+        // get main actions in module folder
+        $this->getActions(__DIR__, false);
+        // get private actions from /site/templates/adminActions folder
+        if(file_exists($customActionsDir = wire('config')->paths->templates.'AdminActions/')) {
+            $this->getActions($customActionsDir, false);
+        }
+        // if more actions in folders than in config, display a warning
+        if(count($this->actions) > count($this->data)) $this->error("You have new actions - please visit the module config settings and click Submit to refresh this list.");
+
+        foreach($this->data as $action => $info) {
+            if($this->getActionPath($action) && count(array_intersect($info['roles'], $this->user->roles->each("id"))) !== 0) {
+                $row = array(
+                    '<p><strong><a href="./options?action='.$action.'">'.preg_replace('/(?<=\\w)(?=[A-Z])/'," $1", $action).'</a></strong></p>',
+                    isset($info['description']) ? $info['description'] : '',
+                    isset($info['notes']) ? '<span class="notes">'.$info['notes'].'</span>' : '',
+                    isset($info['author']) ? '<span class="adminActionsAuthor">'.$info['author'].'</span>' : '',
+
+                );
+                $table->row($row);
             }
         }
-        $form->add($f);
-
-        $f = $this->modules->get("InputfieldSubmit");
-        $f->name = 'submit';
-        $f->value = 'Go To Options';
+        $f->attr('value', $table->render());
         $form->add($f);
 
         return $form;
@@ -285,7 +306,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
     }
 
 
-    private function getActions($folderPath) {
+    private function getActions($folderPath, $instantiate = true) {
         foreach(new \DirectoryIterator($folderPath) as $file) {
             if($file->isDot()) continue;
             if(substr($file->getBasename(), 0, 1) == '.') continue;
@@ -294,11 +315,14 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                 if(!strpos($basename, '.action')) continue;
                 if(!preg_match('/^([A-Z][a-zA-Z0-9_]+)\.action\.php$/', $basename, $matches)) continue;
                 $className = $matches[1];
-                require_once $this->getActionPath($className);
-                $action = new $className;
+                if($instantiate) {
+                    require_once $this->getActionPath($className);
+                    $action = new $className;
+                    $this->actions[$className]['description'] = $action->description;
+                    $this->actions[$className]['notes'] = $action->notes;
+                    $this->actions[$className]['author'] = $action->author;
+                }
                 $this->actions[$className]['name'] = $className;
-                $this->actions[$className]['description'] = $action->description;
-                $this->actions[$className]['notes'] = $action->notes;
             }
         }
     }
@@ -320,9 +344,11 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         $wrapper = new InputfieldWrapper();
 
-        self::getActions(__DIR__);
+        // get main actions in module folder
+        $this->getActions(__DIR__);
+        // get private actions from /site/templates/adminActions folder
         if(file_exists($customActionsDir = wire('config')->paths->templates.'AdminActions/')) {
-            self::getActions($customActionsDir);
+            $this->getActions($customActionsDir);
         }
 
         $f = wire('modules')->get("InputfieldMarkup");
@@ -340,14 +366,28 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             $f->options = $rolesOptions;
             $f->columnWidth = 20;
             $f->setAsmSelectOption('sortable', false);
-            $f->value = isset($data[$values['name']]) ? $data[$values['name']] : array(wire('roles')->get('superuser')->id);
+            $f->value = isset($data[$values['name']]['roles']) ? $data[$values['name']]['roles'] : array(wire('roles')->get('superuser')->id);
             $wrapper->add($f);
+
             // prepare initial superuser role for each action for initial module install
-            $initialData[$values['name']] = array(wire('roles')->get('superuser')->id);
+            $initialData[$values['name']]['roles'] = array(wire('roles')->get('superuser')->id);
+            // prepare initial description, notes, and author values
+            $initialData[$values['name']]['description'] = $values['description'];
+            $initialData[$values['name']]['notes'] = $values['notes'];
+            $initialData[$values['name']]['author'] = $values['author'];
         }
 
-        // save superuser role to each action during initial module install when $data is empty
+        // save initial data when $data is empty on module install
         if(!$data) wire('modules')->saveModuleConfigData(wire('modules')->get("ProcessAdminActions"), $initialData);
+
+        // modify what is stored when settings saved so we can have the multidimensional array of data
+        wire('modules')->addHookBefore('saveModuleConfigData', null, function($event) use ($initialData) {
+            $data = $event->arguments(1);
+            foreach($data as $action => $roles) {
+                if(isset($initialData[$action])) $initialData[$action]['roles'] = $roles;
+            }
+            $event->arguments(1, $initialData);
+        });
 
         return $wrapper;
     }

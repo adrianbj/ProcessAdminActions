@@ -2,6 +2,8 @@
 
 class SearchAndReplace extends ProcessAdminActions {
 
+    protected $author = 'Adrian Jones';
+
     protected function defineOptions() {
         return array(
             array(
@@ -12,12 +14,12 @@ class SearchAndReplace extends ProcessAdminActions {
                 'required' => true
             ),
             array(
-                'name' => 'field',
-                'label' => 'Field',
-                'description' => 'Choose the field that you want to search',
-                'type' => 'select',
+                'name' => 'fields',
+                'label' => 'Fields',
+                'description' => 'Choose the field(s) that you want to search',
+                'type' => 'AsmSelect',
                 'required' => true,
-                'options' => $this->fields->find("type=FieldtypeText|TextareaLanguage|FieldtypeTextarea|FieldtypeTextareaLanguage|FieldtypeEmail")->getArray()
+                'options' => $this->fields->find("type=FieldtypeText|TextareaLanguage|FieldtypeTextarea|FieldtypeTextareaLanguage")->getArray()
             ),
             array(
                 'name' => 'search',
@@ -39,18 +41,20 @@ class SearchAndReplace extends ProcessAdminActions {
 
     protected function executeAction($options) {
 
+        bd($options);
         $count = 0;
         foreach($this->pages->find($options['selector']) as $p) {
             $p->of(false);
-            foreach($options['field'] as $field) {
-                $f = $this->fields->get($field);
-                $p->$f = str_replace($options['search'], $options['replace'], $p->$f);
-                $p->save($f);
+            foreach($options['fields'] as $field) {
+                $fieldName = $this->fields->get($field)->name;
+                bd($p->$fieldName);
+                $p->$fieldName = str_replace($options['search'], $options['replace'], $p->$fieldName);
+                $p->save($fieldName);
             }
             $count++;
         }
 
-        $this->successMessage = 'The ' . $options['action'] . ' action was successfully applied to ' . $count .' page' . _n('', 's', $count) . '.';
+        $this->successMessage = 'Successfully applied to ' . $count .' page' . _n('', 's', $count) . '.';
         return true;
 
     }
