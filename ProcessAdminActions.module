@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => 1,
+            'version' => 2,
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -40,7 +40,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'permission' => 'admin-actions',
             // automatically installed permissions
             'permissions' => array(
-                'admin-actions' => 'Run AdminActions actions'
+                'admin-actions' => 'Run selected AdminActions actions'
             )
         );
     }
@@ -221,7 +221,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         ksort($this->data);
         // get main actions in module folder
-        $this->getActions(__DIR__, false);
+        $this->getActions(__DIR__ . '/actions', false);
         // get private actions from /site/templates/adminActions folder
         if(file_exists($customActionsDir = wire('config')->paths->templates.'AdminActions/')) {
             $this->getActions($customActionsDir, false);
@@ -294,7 +294,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
 
     private function getActionPath($className) {
-        if(file_exists($actionPath = __DIR__ . '/'.$className.'.action.php')) {
+        if(file_exists($actionPath = __DIR__ . '/actions/'.$className.'.action.php')) {
             return $actionPath;
         }
         elseif(file_exists($actionPath = $this->config->paths->templates.'AdminActions/'.$className.'.action.php')) {
@@ -345,7 +345,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $wrapper = new InputfieldWrapper();
 
         // get main actions in module folder
-        $this->getActions(__DIR__);
+        $this->getActions(__DIR__ . '/actions/');
         // get private actions from /site/templates/adminActions folder
         if(file_exists($customActionsDir = wire('config')->paths->templates.'AdminActions/')) {
             $this->getActions($customActionsDir);
