@@ -10,7 +10,7 @@ class TemplateFieldsBatcher extends ProcessAdminActions {
         $fieldOptions = array();
         foreach($this->fields as $field) {
             if ($field->flags & Field::flagSystem || $field->flags & Field::flagPermanent) continue;
-            if(count($field->getFieldgroups()) === 0) $fieldOptions[$field->id] = $field->label ? $field->label . ' (' . $field->name . ')' : $field->name;
+            $fieldOptions[$field->id] = $field->label ? $field->label . ' (' . $field->name . ')' : $field->name;
         }
 
         return array(
@@ -51,7 +51,7 @@ class TemplateFieldsBatcher extends ProcessAdminActions {
 
         foreach($options['templates'] as $template) {
             $t = $this->templates->get($template);
-            foreach($options['templates'] as $field) {
+            foreach($options['fields'] as $field) {
                 if($options['addOrRemove'] == "add") {
                     $t->fields->add($field);
                 }
@@ -65,7 +65,7 @@ class TemplateFieldsBatcher extends ProcessAdminActions {
 
         $templateCount = count($options['templates']);
         $fieldCount = count($options['fields']);
-        $this->successMessage = $fieldCount . ' fields' . _n('', 's', $fieldCount) . ' ' . _n('was', 'were', $fieldCount) . ' successfully modified in ' . $templateCount . ' template' . _n('', 's', $templateCount);
+        $this->successMessage = $fieldCount . ' field' . _n('', 's', $fieldCount) . ' ' . _n('was', 'were', $fieldCount) . ' successfully modified in ' . $templateCount . ' template' . _n('', 's', $templateCount);
         return true;
 
     }
