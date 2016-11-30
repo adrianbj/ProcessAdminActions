@@ -4,6 +4,11 @@ class TemplateFieldsBatcher extends ProcessAdminActions {
 
     protected $description = 'Lets you add or remove multiple fields from multiple templates at once.';
     protected $author = 'Adrian Jones';
+    protected $authorLinks = array(
+        'pwforum' => '985-adrian',
+        'pwdirectory' => 'adrian-jones',
+        'github' => 'adrianbj',
+    );
 
     protected function defineOptions() {
 

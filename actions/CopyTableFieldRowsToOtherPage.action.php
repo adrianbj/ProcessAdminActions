@@ -5,6 +5,11 @@ class CopyTableFieldRowsToOtherPage extends ProcessAdminActions {
     protected $description = 'Add the rows from a Table field on one page to the same field on another page.';
     protected $notes = 'If the field on the destination page already has rows, you can choose to append, or overwrite.';
     protected $author = 'Adrian Jones';
+    protected $authorLinks = array(
+        'pwforum' => '985-adrian',
+        'pwdirectory' => 'adrian-jones',
+        'github' => 'adrianbj',
+    );
 
     protected function checkRequirements() {
         if(!$this->wire('modules')->isInstalled("FieldtypeTable")) {

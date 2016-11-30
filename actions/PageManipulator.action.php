@@ -5,6 +5,11 @@ class PageManipulator extends ProcessAdminActions {
     protected $description = 'Uses an InputfieldSelector to query pages and then allows batch actions on the matched pages.';
     protected $notes = 'Actions are: Trash, Delete, Publish, Unpublish, Hide, Unhide.';
     protected $author = 'Adrian Jones';
+    protected $authorLinks = array(
+        'pwforum' => '985-adrian',
+        'pwdirectory' => 'adrian-jones',
+        'github' => 'adrianbj',
+    );
 
     protected function defineOptions() {
         return array(

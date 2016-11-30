@@ -1,8 +1,14 @@
 <?php
+// this action is not ready for use yet, which is why the filename doesn't have ".action" in it, so it won't be installed
 
 class SearchAndReplace extends ProcessAdminActions {
 
     protected $author = 'Adrian Jones';
+    protected $authorLinks = array(
+        'pwforum' => '985-adrian',
+        'pwdirectory' => 'adrian-jones',
+        'github' => 'adrianbj',
+    );
 
     protected function defineOptions() {
         return array(

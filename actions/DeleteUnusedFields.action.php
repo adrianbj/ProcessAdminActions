@@ -5,6 +5,11 @@ class DeleteUnusedFields extends ProcessAdminActions {
     protected $description = 'Deletes fields that are not used by any templates.';
     protected $notes = 'Shows a list of unused fields with checkboxes to select those to delete.';
     protected $author = 'Adrian Jones';
+    protected $authorLinks = array(
+        'pwforum' => '985-adrian',
+        'pwdirectory' => 'adrian-jones',
+        'github' => 'adrianbj',
+    );
 
     protected function defineOptions() {
 

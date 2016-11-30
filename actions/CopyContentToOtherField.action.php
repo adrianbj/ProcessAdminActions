@@ -5,6 +5,11 @@ class CopyContentToOtherField extends ProcessAdminActions {
     protected $description = 'This action copies the content from one field to another field on all pages that use the selected template.';
     protected $notes = 'This can be useful if you decide you need to split one field into two to allow different settings on different templates. It also makes it easy to move content from one field type to another one that is incompatible.';
     protected $author = 'Adrian Jones';
+    protected $authorLinks = array(
+        'pwforum' => '985-adrian',
+        'pwdirectory' => 'adrian-jones',
+        'github' => 'adrianbj',
+    );
 
     protected function defineOptions() {
         return array(
