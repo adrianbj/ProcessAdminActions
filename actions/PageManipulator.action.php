@@ -26,7 +26,8 @@ class PageManipulator extends ProcessAdminActions {
                 'type' => 'checkboxes',
                 'options' => array(
                     'trash' => 'Trash',
-                    'delete' => 'Delete'
+                    'delete' => 'Delete',
+                    'deleteIncludeChildren' => 'Delete (include children)'
                 )
             ),
             array(
@@ -66,6 +67,7 @@ class PageManipulator extends ProcessAdminActions {
 
             if(in_array('trash', $options['remove'])) $p->trash();
             if(in_array('delete', $options['remove'])) $p->delete();
+            if(in_array('deleteIncludeChildren', $options['remove'])) $this->pages->delete($p, true);
 
             if(in_array('publish', $options['status'])) $p->removeStatus(Page::statusUnpublished);
             if(in_array('unpublish', $options['status'])) $p->addStatus(Page::statusUnpublished);
