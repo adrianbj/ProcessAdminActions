@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => 8,
+            'version' => 9,
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -163,7 +163,6 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             foreach($this->input->get as $field => $value) {
                 // exclude fields that don't exist in the form, like the "action" url parameter
                 if(!is_object($form->get($field)) || !$form->get($field)->parent) continue;
-                $value = strip_tags($value);
                 // if field expects an array (multiple) then we need to convert the URL parameter
                 if($form->get($field)->multiple) {
                     if(strpos($value, '|') !== false) {
@@ -236,7 +235,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
      *
      */
     public function ___executeRestore() {
-        if($this->user->hasRole('admin-actions-restore')) {
+        if($this->user->isSuperuser() || $this->user->hasRole('admin-actions-restore')) {
             $backup = new WireDatabaseBackup($this->adminActionsCacheDir);
             $backup->setDatabase($this->database);
             $backup->setDatabaseConfig($this->config);

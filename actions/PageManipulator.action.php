@@ -3,7 +3,7 @@
 class PageManipulator extends ProcessAdminActions {
 
     protected $description = 'Uses an InputfieldSelector to query pages and then allows batch actions on the matched pages.';
-    protected $notes = 'Actions are: Trash, Delete, Publish, Unpublish, Hide, Unhide.';
+    protected $notes = 'Actions are: Publish, Unpublish, Hide, Unhide, Trash, Delete, Change Template, Change Parent';
     protected $author = 'Adrian Jones';
     protected $authorLinks = array(
         'pwforum' => '985-adrian',
@@ -21,19 +21,38 @@ class PageManipulator extends ProcessAdminActions {
                 'required' => true
             ),
             array(
-                'name' => 'action',
-                'label' => 'Action',
-                'description' => 'Choose the action to be executed',
-                'type' => 'select',
+                'name' => 'remove',
+                'label' => 'Trash or Delete',
+                'type' => 'checkboxes',
                 'options' => array(
                     'trash' => 'Trash',
-                    'delete' => 'Delete',
+                    'delete' => 'Delete'
+                )
+            ),
+            array(
+                'name' => 'status',
+                'label' => 'Status',
+                'type' => 'checkboxes',
+                'showIf'=> 'remove.count=0',
+                'options' => array(
                     'publish' => 'Publish',
                     'unpublish' => 'Unpublish',
                     'hide' => 'Hide',
                     'unhide' => 'Unhide'
-                ),
-                'required' => true
+                )
+            ),
+            array(
+                'name' => 'changeParent',
+                'label' => 'Change Parent',
+                'type' => 'pageListSelect',
+                'showIf'=> 'remove.count=0',
+            ),
+            array(
+                'name' => 'changeTemplate',
+                'label' => 'Change Template',
+                'type' => 'select',
+                'showIf'=> 'remove.count=0',
+                'options' => $this->templates->find("sort=name, flags!=".Template::flagSystem)->getArray()
             )
         );
     }
@@ -44,17 +63,23 @@ class PageManipulator extends ProcessAdminActions {
         $count = 0;
         foreach($this->pages->find($options['selector']) as $p) {
             $p->of(false);
-            if($options['action'] == 'trash') $p->trash();
-            if($options['action'] == 'delete') $p->delete();
-            if($options['action'] == 'publish') $p->removeStatus(Page::statusUnpublished);
-            if($options['action'] == 'unpublish') $p->addStatus(Page::statusUnpublished);
-            if($options['action'] == 'hide') $p->addStatus(Page::statusHidden);
-            if($options['action'] == 'unhide') $p->removeStatus(Page::statusHidden);
+
+            if(in_array('trash', $options['remove'])) $p->trash();
+            if(in_array('delete', $options['remove'])) $p->delete();
+
+            if(in_array('publish', $options['status'])) $p->removeStatus(Page::statusUnpublished);
+            if(in_array('unpublish', $options['status'])) $p->addStatus(Page::statusUnpublished);
+            if(in_array('hide', $options['status'])) $p->addStatus(Page::statusHidden);
+            if(in_array('unhide', $options['status'])) $p->removeStatus(Page::statusHidden);
+
+            if($options['changeParent']) $p->parent = $options['changeParent'];
+            if($options['changeTemplate']) $p->template = $options['changeTemplate'];
+
             $p->save();
             $count++;
         }
 
-        $this->successMessage = 'The ' . $options['action'] . ' action was successfully applied to ' . $count .' page' . _n('', 's', $count) . '.';
+        $this->successMessage = 'The actions were successfully applied to ' . $count .' page' . _n('', 's', $count) . '.';
         return true;
 
     }
