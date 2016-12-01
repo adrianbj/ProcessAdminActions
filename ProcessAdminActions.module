@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => 7,
+            'version' => 8,
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -155,7 +155,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         // then we want to execute with the url parameters.
         // Note that the URL ($input->get) contains the additional "action", so start with $i=1
         $i=1;
-        foreach($form as $field) {
+        foreach($form->getAll() as $field) {
             if($field->hasClass('required')) $i++;
         }
         if(count($this->input->get) === $i) {
@@ -163,6 +163,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             foreach($this->input->get as $field => $value) {
                 // exclude fields that don't exist in the form, like the "action" url parameter
                 if(!is_object($form->get($field)) || !$form->get($field)->parent) continue;
+                $value = strip_tags($value);
                 // if field expects an array (multiple) then we need to convert the URL parameter
                 if($form->get($field)->multiple) {
                     if(strpos($value, '|') !== false) {
@@ -177,7 +178,8 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             // disable CSRF because we are using GET data
             $form->protectCSRF = false;
             $form->processInput($urlFields);
-            foreach($form as $field) {
+            $form->protectCSRF = true;
+            foreach($form->getAll() as $field) {
                 $value = $form->get($field->name)->value;
                 $options[$field->name] = $value;
             }
@@ -187,7 +189,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         }
         else {
             $form->processInput($this->input->post);
-            foreach($form as $field) {
+            foreach($form->getAll() as $field) {
                 $options[$field->name] = $form->get($field->name)->value;
             }
         }
@@ -355,7 +357,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $form->add($f);
 
         //preset any fields provided as URL parameters
-        foreach($form as $field) {
+        foreach($form->getAll() as $field) {
             if($fieldValue = $this->input->get($field->name)) {
                 if (strpos($fieldValue, '|') !== false) $fieldValue = explode('|', $fieldValue);
                 $form->get($field->name)->value = $fieldValue;
