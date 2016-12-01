@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => 6,
+            'version' => 7,
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -161,7 +161,8 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         if(count($this->input->get) === $i) {
             $urlFields = new WireInputData();
             foreach($this->input->get as $field => $value) {
-                if($field === 'action') continue; // exclude the "action" url parameter
+                // exclude fields that don't exist in the form, like the "action" url parameter
+                if(!is_object($form->get($field)) || !$form->get($field)->parent) continue;
                 // if field expects an array (multiple) then we need to convert the URL parameter
                 if($form->get($field)->multiple) {
                     if(strpos($value, '|') !== false) {
