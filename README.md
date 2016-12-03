@@ -47,6 +47,8 @@ Lets you add or remove multiple fields from multiple templates at once.
 ##### Template Roles Batcher
 Lets you add or remove access permissions, for multiple roles and multiple templates at once.
 
+##### User Roles Permissions Batcher
+Lets you add or remove permissions for multiple roles, or roles for multiple users at once.
 
 #### Creating a New Action
 
