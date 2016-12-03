@@ -14,40 +14,40 @@ Admin Actions lets you quickly create actions in the admin that you can use over
 
 It comes bundled with a several actions and I will be adding more over time (and hopefully I'll get some PRs from you guys too). You can browse and sort and filter based on the content of all columns.
 
-##### Copy Content To Other Field
+**Copy Content To Other Field**
 This action copies the content from one field to another field on all pages that use the selected template.
 
-##### Copy Field Content To Other Page
+**Copy Field Content To Other Page**
 Copies the content from a field on one page to the same field on another page.
 
-##### Copy Table Field Rows To Other Page
+**Copy Table Field Rows To Other Page**
 Add the rows from a Table field on one page to the same field on another page.
 
-##### Delete Unused Fields
+**Delete Unused Fields**
 Deletes fields that are not used by any templates.
 
-##### Delete Unused Templates
+**Delete Unused Templates**
 Deletes templates that are not used by any pages.
 
-##### Field Set Or Search And Replace
+**Field Set Or Search And Replace**
 Set field values, or search and replace text in field values from a filtered selection of pages and fields.
 
-##### Page Active Languages Batcher
+**Page Active Languages Batcher**
 Lets you enable or disable active status of multiple languages on multiple pages at once.
 
-##### Page Manipulator
+**Page Manipulator**
 Uses an InputfieldSelector to query pages and then allows batch actions on the matched pages.
 
-##### Page Table To Repeater Matrix
+**Page Table To Repeater Matrix**
 Fully converts an existing (and populated) PageTable field to either a Repeater or RepeaterMatrix field.
 
-##### Template Fields Batcher
+**Template Fields Batcher**
 Lets you add or remove multiple fields from multiple templates at once.
 
-##### Template Roles Batcher
+**Template Roles Batcher**
 Lets you add or remove access permissions, for multiple roles and multiple templates at once.
 
-##### User Roles Permissions Batcher
+**User Roles Permissions Batcher**
 Lets you add or remove permissions for multiple roles, or roles for multiple users at once.
 
 #### Creating a New Action
