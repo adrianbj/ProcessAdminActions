@@ -44,7 +44,7 @@ Fully converts an existing (and populated) PageTable field to either a Repeater 
 ##### Template Fields Batcher
 Lets you add or remove multiple fields from multiple templates at once.
 
-###### Template Roles Batcher
+##### Template Roles Batcher
 Lets you add or remove access permissions, for multiple roles and multiple templates at once.
 
 
