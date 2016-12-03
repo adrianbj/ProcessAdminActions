@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => 11,
+            'version' => 12,
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -122,7 +122,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         if(!$this->hasPermission) return $this->noPermissionMessage;
 
-        $out = '<h2>'.preg_replace('/(?<=\\w)(?=[A-Z])/'," $1", $this->action->className).'</h2>';
+        $out = '<h2>'.$this->getActionName($this->action->className).'</h2>';
 
         if(method_exists($this->action,'checkRequirements') && !$this->action->checkRequirements()) {
             $out .= '<div class="adminActionsError"><p>Sorry, this action cannot proceed.</p><p>' . $this->action->requirementsMessage . '</p></div>';
@@ -146,7 +146,9 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         if(!$this->hasPermission) return $this->noPermissionMessage;
 
-        $actionTitle = '<h2>'.preg_replace('/(?<=\\w)(?=[A-Z])/'," $1", $this->action->className).'</h2>';
+        $actionName = $this->getActionName($this->action->className);
+
+        $actionTitle = '<h2>'.$actionName.'</h2>';
 
         $form = $this->buildOptionsForm();
         // build up $options array to pass to the action's executeAction method
@@ -220,10 +222,10 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         // execute action and render output
         if($this->action->executeAction($options) && !$form->getErrors()) {
             $restoreLink = '<br /><div class="adminActionsWarning"><p>If you find a problem with the changes, you can <a href="./restore/">restore</a> the entire database.</p></div>';
-            return $actionTitle . '<div class="adminActionsSuccess"><p>The '.$this->action->className.' action was completed successfully.</p><p>' . $this->action->successMessage . '</p></div>' . $restoreLink;
+            return $actionTitle . '<div class="adminActionsSuccess"><p>The '.$actionName.' action was completed successfully.</p><p>' . $this->action->successMessage . '</p></div>' . $restoreLink;
         }
         else {
-            $this->error('Sorry, the '.$this->action->className.' action could not be completed successfully.');
+            $this->error('Sorry, the '.$actionName.' action could not be completed successfully.');
             return $actionTitle . ($this->action->failureMessage ? '<div class="adminActionsError"><p>' . $this->action->failureMessage . '</p></div><br /><br />' : '') . $form->render();
         }
 
@@ -292,7 +294,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         foreach($this->data as $action => $info) {
             if($this->getActionPath($action) && count(array_intersect($info['roles'], $this->user->roles->each("id"))) !== 0) {
                 $row = array(
-                    '<p><strong><a href="./options?action='.$action.'">'.preg_replace('/(?<=\\w)(?=[A-Z])/'," $1", $action).'</a></strong></p>',
+                    '<p><strong><a href="./options?action='.$action.'">'.$this->getActionName($action).'</a></strong></p>',
                     isset($info['description']) ? $info['description'] : '',
                     isset($info['notes']) ? '<span class="notes">'.$info['notes'].'</span>' : '',
                     isset($info['author']) ? '<span class="adminActionsAuthor">'.$info['author'].'<br />' . ($info['authorLinks'] ? $this->authorLinks($info['authorLinks']) : '') . '</span>' : '',
@@ -453,6 +455,12 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         return $out;
     }
 
+
+    private function getActionName($className) {
+        return preg_replace('/(?<=\\w)(?=[A-Z])/'," $1", $className);
+    }
+
+
     /**
      * Return an InputfieldsWrapper of Inputfields used to configure the class
      *
@@ -485,7 +493,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         foreach($this->actions as $action => $values) {
             $f = wire('modules')->get("InputfieldAsmSelect");
             $f->attr('name', $values['name']);
-            $f->label = preg_replace('/(?<=\\w)(?=[A-Z])/'," $1", $values['name']);
+            $f->label = $this->getActionName($values['name']);
             $f->description = $values['description'];
             $f->notes = $values['notes'];
             $f->options = $rolesOptions;

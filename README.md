@@ -14,6 +14,40 @@ Admin Actions lets you quickly create actions in the admin that you can use over
 
 It comes bundled with a several actions and I will be adding more over time (and hopefully I'll get some PRs from you guys too). You can browse and sort and filter based on the content of all columns.
 
+##### Copy Content To Other Field
+This action copies the content from one field to another field on all pages that use the selected template.
+
+##### Copy Field Content To Other Page
+Copies the content from a field on one page to the same field on another page.
+
+##### Copy Table Field Rows To Other Page
+Add the rows from a Table field on one page to the same field on another page.
+
+##### Delete Unused Fields
+Deletes fields that are not used by any templates.
+
+##### Delete Unused Templates
+Deletes templates that are not used by any pages.
+
+##### Field Set Or Search And Replace
+Set field values, or search and replace text in field values from a filtered selection of pages and fields.
+
+##### Page Active Languages Batcher
+Lets you enable or disable active status of multiple languages on multiple pages at once.
+
+##### Page Manipulator
+Uses an InputfieldSelector to query pages and then allows batch actions on the matched pages.
+
+##### Page Table To Repeater Matrix
+Fully converts an existing (and populated) PageTable field to either a Repeater or RepeaterMatrix field.
+
+##### Template Fields Batcher
+Lets you add or remove multiple fields from multiple templates at once.
+
+###### Template Roles Batcher
+Lets you add or remove access permissions, for multiple roles and multiple templates at once.
+
+
 #### Creating a New Action
 
 If you create a new action that you think others would find useful, please add it to the "actions" subfolder of this module and submit a PR. If you think it is only useful for you, place it in /site/templates/AdminActions/ so that it doesn't get lost on module updates.
@@ -48,6 +82,11 @@ class DeleteUnusedFields extends ProcessAdminActions {
     protected $description = 'Deletes fields that are not used by any templates.';
     protected $notes = 'Shows a list of unused fields with checkboxes to select those to delete.';
     protected $author = 'Adrian Jones';
+    protected $authorLinks = array(
+        'pwforum' => '985-adrian',
+        'pwdirectory' => 'adrian-jones',
+        'github' => 'adrianbj',
+    );
 
     protected function defineOptions() {
 
