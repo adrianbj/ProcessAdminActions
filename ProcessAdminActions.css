@@ -35,3 +35,14 @@ table.AdminDataList.adminactions td:nth-child(4), table.AdminDataList.adminactio
 .adminActionsAuthor {
     font-size: 13px;
 }
+
+
+#actionCodeViewer {
+    height:500px;
+    margin: 0;
+    position: relative;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}

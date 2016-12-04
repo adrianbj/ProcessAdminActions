@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => 14,
+            'version' => 15,
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -97,6 +97,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                 return $this->noPermissionMessage;
             }
         }
+
     }
 
 
@@ -132,7 +133,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             if($this->input->post->submit) {
                 $out .= $this->processOptionsForm($form);
             } else {
-                $out .= $form->render();
+                $out .= is_string($form) ? $form : $form->render();
             }
         }
         return $out;
@@ -316,7 +317,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
     }
 
     /**
-     * Process the form and populate session variables with the results
+     * Process the action select form
      *
      */
     private function processSelectForm(InputfieldForm $form) {
@@ -350,6 +351,18 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $f->notes = $this->action->notes;
         $form->add($f);
 
+        if($this->user->isSuperuser()) {
+            $this->config->scripts->add($this->config->urls->siteModules . 'ProcessAdminActions/ace-editor/ace.js');
+            $f = $this->modules->get("InputfieldMarkup");
+            $f->name = 'actionCode';
+            $f->label = 'Action Code';
+            $f->description = 'This is the executeAction() method used by this action. This is just here as a reference in case you are curious what code is about to be executed.';
+            $f->notes = 'The $options array contains the index (key) and value for each of the options defined below.';
+            $f->value = '<div id="actionCodeViewer">'.$this->getFunctionCode($this->getActionPath($this->input->get->action), 'executeAction').'</div>';
+            $f->collapsed = Inputfield::collapsedYes;
+            $form->add($f);
+        }
+
         if(method_exists($this->action,'defineOptions')) $form->add($this->action->defineOptions());
 
         $f = $this->modules->get("InputfieldSubmit");
@@ -366,7 +379,6 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         }
 
         return $form;
-
     }
 
 
@@ -458,6 +470,47 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
     private function getActionName($className) {
         return preg_replace('/(?<=\\w)(?=[A-Z])/'," $1", $className);
+    }
+
+
+    private function getFunctionCode($source, $functionName) {
+
+        $tokens = token_get_all(file_get_contents($source));
+
+        for($i=0,$z=count($tokens); $i<$z; $i++)
+            if(is_array($tokens[$i])
+                && $tokens[$i][0] == T_FUNCTION
+                && is_array($tokens[$i+1])
+                && $tokens[$i+1][0] == T_WHITESPACE
+                && is_array($tokens[$i+2])
+                && $tokens[$i+2][1] == $functionName)
+                    break;
+
+        $accumulator = array();
+        // collect tokens from function head through opening brace
+        while($tokens[$i] != '{' && ($i < $z)) {
+            $accumulator[] = is_array($tokens[$i]) ? $tokens[$i][1] : $tokens[$i];
+            $i++;
+        }
+        if($i == $z) {
+            // handle error
+        } else {
+            // note, accumulate, and position index past brace
+            $braceDepth = 1;
+            $accumulator[] = '{';
+            $i++;
+        }
+        while($braceDepth > 0 && ($i < $z)) {
+            if(is_array($tokens[$i]))
+                $accumulator[] = $tokens[$i][1];
+            else {
+                $accumulator[] = $tokens[$i];
+                if($tokens[$i] == '{') $braceDepth++;
+                else if($tokens[$i] == '}') $braceDepth--;
+            }
+            $i++;
+        }
+        return "\t".implode(null,$accumulator);
     }
 
 

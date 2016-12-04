@@ -24,6 +24,7 @@ class PageManipulator extends ProcessAdminActions {
                 'name' => 'remove',
                 'label' => 'Trash or Delete',
                 'type' => 'checkboxes',
+                'showIf'=> 'status.count=0, changeParent.count=0, changeTemplate.count=0',
                 'options' => array(
                     'trash' => 'Trash',
                     'delete' => 'Delete',
