@@ -37,7 +37,7 @@ class DeleteUnusedFields extends ProcessAdminActions {
     protected function executeAction($options) {
 
         foreach($options['fields'] as $field_id) {
-            $field = $this->fields->get($field_id);
+            $field = $this->fields->get((int)$field_id);
             $this->fields->delete($field);
         }
         $count = count($options['fields']);

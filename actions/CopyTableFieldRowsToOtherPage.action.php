@@ -64,11 +64,11 @@ class CopyTableFieldRowsToOtherPage extends ProcessAdminActions {
 
     protected function executeAction($options) {
 
-        $sourcePage = $this->pages->get((int)$options['sourcePage']);
-        $destinationPage = $this->pages->get((int)$options['destinationPage']);
-        $tableField = $this->fields->get($this->sanitizer->fieldName($options['tableField']));
+        $tableField = $this->fields->get((int)$options['tableField']);
         $tableFieldName = $tableField->name;
         $tableFieldType = $tableField->type;
+        $sourcePage = $this->pages->get((int)$options['sourcePage']);
+        $destinationPage = $this->pages->get((int)$options['destinationPage']);
 
         $sourcePage->of(false);
         $totalRows = $sourcePage->$tableFieldName->getTotal();

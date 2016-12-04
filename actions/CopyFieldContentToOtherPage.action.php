@@ -41,9 +41,9 @@ class CopyFieldContentToOtherPage extends ProcessAdminActions {
 
     protected function executeAction($options) {
 
+        $fieldName = $this->fields->get((int)$options['field'])->name;
         $sourcePage = $this->pages->get((int)$options['sourcePage']);
         $destinationPage = $this->pages->get((int)$options['destinationPage']);
-        $fieldName = $this->fields->get($this->sanitizer->fieldName($options['field']))->name;
 
         $sourcePage->of(false);
         $destinationPage->of(false);

@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => 16,
+            'version' => 17,
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -92,6 +92,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                 require_once $this->getActionPath($this->input->get->action);
                 $this->action = new $this->input->get->action;
                 $this->hasPermission = true;
+                $this->addHookAfter('Process::breadcrumb', $this, 'modifyBreadcrumb');
             }
             else {
                 return $this->noPermissionMessage;
@@ -511,6 +512,11 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             $i++;
         }
         return "\t".implode(null,$accumulator);
+    }
+
+
+    protected function modifyBreadcrumb($event) {
+        $this->wire('breadcrumbs')->add(new Breadcrumb('./options?action='.$this->input->get->action, $this->getActionName($this->input->get->action)));
     }
 
 

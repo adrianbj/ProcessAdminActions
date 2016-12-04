@@ -87,7 +87,7 @@ class PageTableToRepeaterMatrix extends ProcessAdminActions {
         $languages = $this->languages;
 
         // the Page Table field to be converted to a Repeater field
-        $pageTableField = $fields->get($this->sanitizer->fieldName($options['pageTableField']));
+        $pageTableField = $fields->get((int)$options['pageTableField']);
         $pageTableFieldName = $pageTableFieldOriginalName = $pageTableField->name;
 
         // force Repeater Matrix even if there is only only template in the Page Table field that is being converted

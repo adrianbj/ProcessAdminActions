@@ -76,7 +76,7 @@ class FieldSetOrSearchAndReplace extends ProcessAdminActions {
             }
 
             foreach($fieldOptions as $field) {
-                $fieldName = $this->fields->get($field)->name;
+                $fieldName = $this->fields->get((int)$field)->name;
                 if(!$p->template->hasField($fieldName)) continue;
                 if($options['search'] != '') {
                     if($options['search'][0] === '/' && $options['search'][strlen($options['search'])-1] === '/') {

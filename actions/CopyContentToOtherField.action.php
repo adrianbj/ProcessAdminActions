@@ -43,9 +43,9 @@ class CopyContentToOtherField extends ProcessAdminActions {
 
     protected function executeAction($options) {
 
-        $sourceFieldName = $this->fields->get($options['sourceField'])->name;
-        $destinationFieldName = $this->fields->get($options['destinationField'])->name;
-        $templateName = $this->templates->get($options['template'])->name;
+        $sourceFieldName = $this->fields->get((int)$options['sourceField'])->name;
+        $destinationFieldName = $this->fields->get((int)$options['destinationField'])->name;
+        $templateName = $this->templates->get((int)$options['template'])->name;
 
         foreach($this->pages->find("template=".$templateName) as $p) {
             $p->of(false);

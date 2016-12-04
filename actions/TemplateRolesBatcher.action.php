@@ -66,12 +66,13 @@ class TemplateRolesBatcher extends ProcessAdminActions {
 
         foreach($options['templates'] as $template_id) {
 
-            $template = $this->templates->get($template_id);
+            $template = $this->templates->get((int)$template_id);
 
             $allRoles = array();
             foreach($options['access'] as $access) {
                 $allRoles = $template->$access; //already set roles
                 foreach($options['roles'] as $role_id) {
+                    $role_id = (int)$role_id;
                     if($options['addOrRemove'] == "add") {
                         if($access == "createRoles" && !in_array($role_id, $template->editRoles)) continue; //in case they check to add Create without Edit which is not allowed
                         if($this->roles->get($role_id)->hasPermission("page-edit")) $allRoles[] = $role_id; // page-edit check shouldn't actually be necessary here since list of available roles is already limited to these anyway

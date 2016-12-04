@@ -75,8 +75,8 @@ class PageManipulator extends ProcessAdminActions {
             if(in_array('hide', $options['status'])) $p->addStatus(Page::statusHidden);
             if(in_array('unhide', $options['status'])) $p->removeStatus(Page::statusHidden);
 
-            if($options['changeParent']) $p->parent = $options['changeParent'];
-            if($options['changeTemplate']) $p->template = $options['changeTemplate'];
+            if($options['changeParent']) $p->parent = (int)$options['changeParent'];
+            if($options['changeTemplate']) $p->template = (int)$options['changeTemplate'];
 
             $p->save();
             $count++;

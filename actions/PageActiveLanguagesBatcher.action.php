@@ -54,8 +54,8 @@ class PageActiveLanguagesBatcher extends ProcessAdminActions {
 
         $count = 0;
         foreach($this->pages->find($options['selector']) as $p) {
-            foreach($options['languages'] as $language) {
-                $p->set("status$language", $options['activeStatus']);
+            foreach($options['languages'] as $language_id) {
+                $p->set("status".(int)$language_id, $options['activeStatus']);
             }
             $p->save();
             $count++;
