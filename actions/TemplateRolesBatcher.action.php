@@ -64,38 +64,38 @@ class TemplateRolesBatcher extends ProcessAdminActions {
 
     protected function executeAction($options) {
 
-        foreach($options['templates'] as $template) {
+        foreach($options['templates'] as $template_id) {
 
-            $t = $this->templates->get($template);
+            $template = $this->templates->get($template_id);
 
             $allRoles = array();
             foreach($options['access'] as $access) {
-                $allRoles = $t->$access; //already set roles
-                foreach($options['roles'] as $role) {
+                $allRoles = $template->$access; //already set roles
+                foreach($options['roles'] as $role_id) {
                     if($options['addOrRemove'] == "add") {
-                        if($access == "createRoles" && !in_array($role, $t->editRoles)) continue; //in case they check to add Create without Edit which is not allowed
-                        if($this->roles->get($role)->hasPermission("page-edit")) $allRoles[] = $role; // page-edit check shouldn't actually be necessary here since list of available roles is already limited to these anyway
+                        if($access == "createRoles" && !in_array($role_id, $template->editRoles)) continue; //in case they check to add Create without Edit which is not allowed
+                        if($this->roles->get($role_id)->hasPermission("page-edit")) $allRoles[] = $role_id; // page-edit check shouldn't actually be necessary here since list of available roles is already limited to these anyway
                     }
                     else {
                         if($access == "editRoles"){ //in case they check to remove Edit, then automatically remove Create because this is not allowed
-                            $createRoles = $t->createRoles;
-                            if (($key = array_search($role, $createRoles)) !== false) {
+                            $createRoles = $template->createRoles;
+                            if (($key = array_search($role_id, $createRoles)) !== false) {
                                 unset($createRoles[$key]);
                             }
-                            $t->createRoles = array_unique($createRoles);
-                            $t->save();
+                            $template->createRoles = array_unique($createRoles);
+                            $template->save();
                         }
-                        if (($key = array_search($role, $allRoles)) !== false) {
+                        if (($key = array_search($role_id, $allRoles)) !== false) {
                             unset($allRoles[$key]);
                         }
                     }
                 }
-                $t->useRoles = 1;
-                $t->roles = $this->pages->get($this->config->rolesPageID)->children("name!=superuser");
-                $t->$access = array_unique($allRoles); // remove duplicates in case user tries to add role that is already set
+                $template->useRoles = 1;
+                $template->roles = $this->pages->get($this->config->rolesPageID)->children("name!=superuser");
+                $template->$access = array_unique($allRoles); // remove duplicates in case user tries to add role that is already set
             }
 
-            $t->save();
+            $template->save();
 
         }
 

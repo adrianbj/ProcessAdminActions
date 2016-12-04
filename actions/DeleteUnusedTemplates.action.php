@@ -33,16 +33,14 @@ class DeleteUnusedTemplates extends ProcessAdminActions {
 
     protected function executeAction($options) {
 
-        $count = 0;
-        foreach($options['templates'] as $template) {
-            $t = $this->templates->get($template);
-            $this->templates->delete($t);
-            $name = $t->name;
-            $fg = $this->fieldgroups->get($name);
-            $this->fieldgroups->delete($fg);
-            $count++;
+        foreach($options['templates'] as $template_id) {
+            $template = $this->templates->get($template_id);
+            $this->templates->delete($template);
+            $templateName = $template->name;
+            $fieldgroup = $this->fieldgroups->get($templateName);
+            $this->fieldgroups->delete($fieldgroup);
         }
-
+        $count = count($options['templates']);
         $this->successMessage = $count . ' template' . _n('', 's', $count) . ' ' . _n('was', 'were', $count) . ' successfully deleted';
         return true;
 

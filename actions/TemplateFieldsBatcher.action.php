@@ -54,18 +54,18 @@ class TemplateFieldsBatcher extends ProcessAdminActions {
 
     protected function executeAction($options) {
 
-        foreach($options['templates'] as $template) {
-            $t = $this->templates->get($template);
-            foreach($options['fields'] as $field) {
+        foreach($options['templates'] as $template_id) {
+            $template = $this->templates->get($template_id);
+            foreach($options['fields'] as $field_id) {
                 if($options['addOrRemove'] == "add") {
-                    $t->fields->add($field);
+                    $template->fields->add($field_id);
                 }
                 else {
-                    $t->fields->remove($field);
+                    $template->fields->remove($field_id);
                 }
-                $t->fields->save();
+                $template->fields->save();
             }
-            $t->save();
+            $template->save();
         }
 
         $templateCount = count($options['templates']);

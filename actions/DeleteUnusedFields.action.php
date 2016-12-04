@@ -36,13 +36,11 @@ class DeleteUnusedFields extends ProcessAdminActions {
 
     protected function executeAction($options) {
 
-        $count = 0;
-        foreach($options['fields'] as $field) {
-            $f = $this->fields->get($field);
-            $this->fields->delete($f);
-            $count++;
+        foreach($options['fields'] as $field_id) {
+            $field = $this->fields->get($field_id);
+            $this->fields->delete($field);
         }
-
+        $count = count($options['fields']);
         $this->successMessage = $count . ' field' . _n('', 's', $count) . ' ' . _n('was', 'were', $count) . ' successfully deleted';
         return true;
 

@@ -71,21 +71,21 @@ class UserRolesPermissionsBatcher extends ProcessAdminActions {
 
     protected function executeAction($options) {
 
-        foreach($options['users'] as $uid) {
-            $u = $this->users->get($uid);
-            foreach($options['roles'] as $role) {
+        foreach($options['users'] as $user_id) {
+            $u = $this->users->get($user_id);
+            foreach($options['roles'] as $role_id) {
                 if($options['addOrRemove'] == "add") {
-                    $u->addRole($role);
+                    $u->addRole($role_id);
                 }
                 else {
-                    $u->removeRole($role);
+                    $u->removeRole($role_id);
                 }
             }
             $u->save();
         }
 
-        foreach($options['roles'] as $rid) {
-            $role = $this->roles->get($rid);
+        foreach($options['roles'] as $role_id) {
+            $role = $this->roles->get($role_id);
             foreach($options['permissions'] as $permission) {
                 if($options['addOrRemove'] == "add") {
                     $role->addPermission($permission);
