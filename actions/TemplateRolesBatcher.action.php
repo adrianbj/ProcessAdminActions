@@ -3,7 +3,7 @@
 class TemplateRolesBatcher extends ProcessAdminActions {
 
     protected $description = 'Lets you add or remove access permissions, for multiple roles and multiple templates at once.';
-    protected $notes = 'Permission options are: Edit, Create, and Add.';
+    protected $notes = 'Access permission options are: Edit Pages, Create Pages, and Add Children.';
     protected $author = 'Adrian Jones';
     protected $authorLinks = array(
         'pwforum' => '985-adrian',
@@ -34,29 +34,51 @@ class TemplateRolesBatcher extends ProcessAdminActions {
                 'required' => true
             ),
             array(
-                'name' => 'access',
-                'label' => 'Access',
-                'description' => 'Select the access permissions that you want the selected roles added or removed from',
-                'type' => 'checkboxes',
-                'options' => array(
-                    'editRoles' => 'Edit',
-                    'createRoles' => 'Create',
-                    'addRoles' => 'Add'
-                ),
-                'required' => true
-            ),
-            array(
-                'name' => 'addOrRemove',
-                'label' => 'Add or Remove',
-                'description' => 'Select whether you want to add or remove the selected access/roles from the templates',
-                'type' => 'radios',
-                'options' => array(
-                    'add' => 'Add',
-                    'remove' => 'Remove'
-                ),
-                'required' => true,
-                'optionColumns' => 1,
-                'value' => 'add'
+                'name' => 'accessPermissions',
+                'label' => 'Access Permissions',
+                'description' => 'Select whether you want to add or remove the following access permissions for the selected template and roles.',
+                'type' => 'fieldset',
+                'children' => array(
+                    array(
+                        'name' => 'editRoles',
+                        'label' => 'Edit Pages',
+                        'type' => 'radios',
+                        'options' => array(
+                            'nochange' => 'No Change',
+                            'add' => 'Add',
+                            'remove' => 'Remove'
+                        ),
+                        'required' => true,
+                        'optionColumns' => 1,
+                        'value' => 'nochange'
+                    ),
+                    array(
+                        'name' => 'createRoles',
+                        'label' => 'Create Pages',
+                        'type' => 'radios',
+                        'options' => array(
+                            'nochange' => 'No Change',
+                            'add' => 'Add',
+                            'remove' => 'Remove'
+                        ),
+                        'required' => true,
+                        'optionColumns' => 1,
+                        'value' => 'nochange'
+                    ),
+                    array(
+                        'name' => 'addRoles',
+                        'label' => 'Add Children',
+                        'type' => 'radios',
+                        'options' => array(
+                            'nochange' => 'No Change',
+                            'add' => 'Add',
+                            'remove' => 'Remove'
+                        ),
+                        'required' => true,
+                        'optionColumns' => 1,
+                        'value' => 'nochange'
+                    )
+                )
             )
         );
     }
@@ -69,15 +91,15 @@ class TemplateRolesBatcher extends ProcessAdminActions {
             $template = $this->templates->get((int)$template_id);
 
             $allRoles = array();
-            foreach($options['access'] as $access) {
+            foreach(array('editRoles', 'createRoles', 'addRoles') as $access) {
                 $allRoles = $template->$access; //already set roles
                 foreach($options['roles'] as $role_id) {
                     $role_id = (int)$role_id;
-                    if($options['addOrRemove'] == "add") {
+                    if($options[$access] == "add") {
                         if($access == "createRoles" && !in_array($role_id, $template->editRoles)) continue; //in case they check to add Create without Edit which is not allowed
                         if($this->roles->get($role_id)->hasPermission("page-edit")) $allRoles[] = $role_id; // page-edit check shouldn't actually be necessary here since list of available roles is already limited to these anyway
                     }
-                    else {
+                    elseif($options[$access] == "remove") {
                         if($access == "editRoles"){ //in case they check to remove Edit, then automatically remove Create because this is not allowed
                             $createRoles = $template->createRoles;
                             if (($key = array_search($role_id, $createRoles)) !== false) {
