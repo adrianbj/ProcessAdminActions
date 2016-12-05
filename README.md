@@ -148,7 +148,7 @@ or you can execute immediately:
 ```
 http://mysite.dev/processwire/setup/admin-actions/execute?action=TemplateFieldsBatcher&templates=29|56&fields=219&addOrRemove=add
 ```
-Note the "options" vs "execute" as the last path before the parameters.
+Note the "options" vs "execute" as the last path segment before the parameters.
 
 #### Automatic Backup / Restore
 

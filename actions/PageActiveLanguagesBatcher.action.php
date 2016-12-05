@@ -10,52 +10,65 @@ class PageActiveLanguagesBatcher extends ProcessAdminActions {
         'github' => 'adrianbj',
     );
 
+    protected function checkRequirements() {
+        if(!$this->wire('modules')->isInstalled("LanguageSupport")) {
+            $this->requirementsMessage = 'Language support is not enabled, so this module can not do anything.';
+            return false;
+        }
+        else {
+            return true;
+        }
+    }
+
     protected function defineOptions() {
 
-        $languageOptions = array();
-        foreach($this->languages->find("name!=default") as $language) {
-            $languageOptions[$language->id] = $language->title ? $language->name . ' (' . $language->title . ')' : $language->name;
-        }
+        $selector = array(
+            array(
+            'name' => 'selector',
+            'label' => 'Selector',
+            'description' => 'Define selector to match the pages you want to manipulate',
+            'type' => 'selector',
+            'required' => true
+            )
+        );
 
-        return array(
-            array(
-                'name' => 'selector',
-                'label' => 'Selector',
-                'description' => 'Define selector to match the pages you want to manipulate',
-                'type' => 'selector',
-                'required' => true
-            ),
-            array(
-                'name' => 'languages',
-                'label' => 'Languages',
-                'description' => 'Select the languages that you want to manipulate',
-                'type' => 'checkboxes',
-                'required' => true,
-                'options' => $languageOptions
-            ),
-            array(
-                'name' => 'activeStatus',
-                'label' => 'Active Status',
-                'description' => 'Select whether you want to check or uncheck the "Active" checkbox for the selected languages on the matched pages.',
+        $languageStatus = array();
+        foreach($this->languages->find("name!=default") as $language) {
+            $languageStatus[] = array(
+                'name' => 'language'.$language,
+                'label' => $language->title,
                 'type' => 'radios',
                 'options' => array(
-                    '1' => 'Check',
-                    '0' => 'Uncheck'
+                    'nochange' => 'No Change',
+                    '1' => 'Check Active',
+                    '0' => 'Uncheck Active',
                 ),
                 'required' => true,
                 'optionColumns' => 1,
-                'value' => '1'
+                'value' => 'nochange'
+            );
+        }
+
+        $languageFieldset = array(
+            array(
+                'name' => 'languages',
+                'label' => 'Languages',
+                'description' => 'Select whether you want to check or uncheck the "Active" checkbox for the selected languages on the matched pages.',
+                'type' => 'fieldset',
+                'children' => $languageStatus
             )
         );
+
+        return array_merge($selector, $languageFieldset);
     }
 
 
     protected function executeAction($options) {
-
         $count = 0;
         foreach($this->pages->find($options['selector']) as $p) {
-            foreach($options['languages'] as $language_id) {
-                $p->set("status".(int)$language_id, $options['activeStatus']);
+            foreach($this->languages->find("name!=default") as $language) {
+                $newLanguageStatus = $options['language'.$language->id];
+                if($newLanguageStatus !== 'nochange') $p->set("status".$language->id, $options['language'.$language->id]);
             }
             $p->save();
             $count++;
