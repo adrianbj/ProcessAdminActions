@@ -23,37 +23,52 @@ class PageManipulator extends ProcessAdminActions {
             array(
                 'name' => 'remove',
                 'label' => 'Trash or Delete',
-                'type' => 'checkboxes',
-                'showIf'=> 'status.count=0, changeParent.count=0, changeTemplate.count=0',
+                'type' => 'radios',
+                'optionColumns' => 1,
                 'options' => array(
+                    'nochange' => 'No Change',
                     'trash' => 'Trash',
                     'delete' => 'Delete',
                     'deleteIncludeChildren' => 'Delete (include children)'
-                )
+                ),
+                'required' => true,
+                'value' => 'nochange'
             ),
             array(
-                'name' => 'status',
-                'label' => 'Status',
-                'type' => 'checkboxes',
-                'showIf'=> 'remove.count=0',
+                'name' => 'hidden',
+                'label' => 'Hidden',
+                'type' => 'radios',
+                'optionColumns' => 1,
                 'options' => array(
-                    'publish' => 'Publish',
-                    'unpublish' => 'Unpublish',
+                    'nochange' => 'No Change',
                     'hide' => 'Hide',
                     'unhide' => 'Unhide'
-                )
+                ),
+                'required' => true,
+                'value' => 'nochange'
+            ),
+            array(
+                'name' => 'published',
+                'label' => 'Published',
+                'type' => 'radios',
+                'optionColumns' => 1,
+                'options' => array(
+                    'nochange' => 'No Change',
+                    'publish' => 'Publish',
+                    'unpublish' => 'Unpublish'
+                ),
+                'required' => true,
+                'value' => 'nochange'
             ),
             array(
                 'name' => 'changeParent',
                 'label' => 'Change Parent',
                 'type' => 'pageListSelect',
-                'showIf'=> 'remove.count=0',
             ),
             array(
                 'name' => 'changeTemplate',
                 'label' => 'Change Template',
                 'type' => 'select',
-                'showIf'=> 'remove.count=0',
                 'options' => $this->templates->find("sort=name, flags!=".Template::flagSystem)->getArray()
             )
         );
@@ -66,14 +81,14 @@ class PageManipulator extends ProcessAdminActions {
         foreach($this->pages->find($options['selector']) as $p) {
             $p->of(false);
 
-            if(in_array('trash', $options['remove'])) $p->trash();
-            if(in_array('delete', $options['remove'])) $p->delete();
-            if(in_array('deleteIncludeChildren', $options['remove'])) $this->pages->delete($p, true);
+            if($options['remove'] === 'trash') $p->trash();
+            if($options['remove'] === 'delete') $p->delete();
+            if($options['remove'] === 'deleteIncludeChildren') $this->pages->delete($p, true);
 
-            if(in_array('publish', $options['status'])) $p->removeStatus(Page::statusUnpublished);
-            if(in_array('unpublish', $options['status'])) $p->addStatus(Page::statusUnpublished);
-            if(in_array('hide', $options['status'])) $p->addStatus(Page::statusHidden);
-            if(in_array('unhide', $options['status'])) $p->removeStatus(Page::statusHidden);
+            if($options['hidden'] === 'hide') $p->addStatus(Page::statusHidden);
+            if($options['hidden'] === 'unhide') $p->removeStatus(Page::statusHidden);
+            if($options['published'] === 'publish') $p->removeStatus(Page::statusUnpublished);
+            if($options['published'] === 'unpublish') $p->addStatus(Page::statusUnpublished);
 
             if($options['changeParent']) $p->parent = (int)$options['changeParent'];
             if($options['changeTemplate']) $p->template = (int)$options['changeTemplate'];

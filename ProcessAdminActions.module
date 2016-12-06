@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => 19,
+            'version' => 20,
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -131,9 +131,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         }
         else {
             $form = $this->buildOptionsForm();
-            if($this->input->post->submit) {
-                $out .= $this->processOptionsForm($form);
-            } else {
+            if(!$this->input->post->submit) {
                 $out .= is_string($form) ? $form : $form->render();
             }
         }
