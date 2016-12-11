@@ -2,8 +2,8 @@
 
 class CreateUsersBatcher extends ProcessAdminActions {
 
-    protected $description = 'Allows you to batch create users. This module requires the Email New User module and it must be configured to generate a password automatically.';
-    protected $notes = 'It is also recommended that you install the Password Force Change module.';
+    protected $description = 'Allows you to batch create users.';
+    protected $notes = 'Having the Email New User module installed and configured to generate a password automatically is recommended. It is also recommended that you install the Password Force Change module.';
     protected $author = 'Adrian Jones';
     protected $authorLinks = array(
         'pwforum' => '985-adrian',
@@ -11,18 +11,6 @@ class CreateUsersBatcher extends ProcessAdminActions {
         'github' => 'adrianbj',
     );
 
-    protected function checkRequirements() {
-        if($this->wire('modules')->isInstalled("EmailNewUser")) {
-            $emailNewUserSettings = $this->modules->getModuleConfigData('EmailNewUser');
-        }
-        if(!$this->wire('modules')->isInstalled("EmailNewUser") || !$emailNewUserSettings['generatePassword']) {
-            $this->requirementsMessage = 'This action requires the EmailNewUser module to be installed and the Generate Password option to be checked.';
-            return false;
-        }
-        else {
-            return true;
-        }
-    }
 
     protected function defineOptions() {
 
@@ -42,8 +30,8 @@ class CreateUsersBatcher extends ProcessAdminActions {
             array(
                 'name' => 'newUsers',
                 'label' => 'New Users',
-                'description' => 'Each line should contain: username, email',
-                'notes' => 'Example: myname, myname@gmail.com',
+                'description' => 'Each line must contain: username, useremail@gmail.com',
+                'notes' => 'If you want to set other field values as well, include them in this order: username, '.$this->templates->get("user")->fields->find("name!=roles")->implode(", ", "name"),
                 'type' => 'textarea',
                 'required' => true
             )
@@ -53,16 +41,40 @@ class CreateUsersBatcher extends ProcessAdminActions {
 
     protected function executeAction($options) {
 
-        $this->modules->get("EmailNewUser");
+        $passwordFailureMessage = "If you don't specify a password, the EmailNewUser module has to be installed and the Generate Password option must be checked.";
+
+        if($this->wire('modules')->isInstalled("EmailNewUser")) {
+            $this->modules->get("EmailNewUser");
+            $emailNewUserSettings = $this->modules->getModuleConfigData('EmailNewUser');
+        }
         $newUsersArr = $this->explodeAndTrim($options['newUsers'], "\n");
         foreach($newUsersArr as $newUser) {
             $newUserArr = $this->explodeAndTrim($newUser, ',');
             $_newUser = new User();
             $_newUser->name = $newUserArr[0];
-            $_newUser->email = $newUserArr[1];
-            $_newUser->pass = ''; // need to set to blank to trigger EmailNewUser to generate automatic password
-            $_newUser->sendEmail = true;
-            $_newUser->force_passwd_change = 1;
+            if(count($newUserArr) == 2) {
+                if(!$this->wire('modules')->isInstalled("EmailNewUser") || !$emailNewUserSettings['generatePassword']) {
+                    $this->failureMessage = $passwordFailureMessage;
+                    return false;
+                }
+                $_newUser->email = $newUserArr[1];
+                $_newUser->pass = ''; // need to set to blank to trigger EmailNewUser to generate automatic password
+                $_newUser->sendEmail = true;
+                $_newUser->force_passwd_change = 1;
+            }
+            else {
+                $i=1;
+                foreach($this->templates->get("user")->fields as $f) {
+                    if($f->name == 'roles') continue;
+                    if($f->name == 'pass' && $newUserArr[$i] == '' && (!$this->wire('modules')->isInstalled("EmailNewUser") || !$emailNewUserSettings['generatePassword'])) {
+                        $this->failureMessage = $passwordFailureMessage;
+                        return false;
+                    }
+                    $_newUser->{$f->name} = isset($newUserArr[$i]) ? $newUserArr[$i] : null;
+                    $i++;
+                }
+            }
+            $_newUser->addRole("guest");
             foreach($options['roles'] as $role_id) {
                 $_newUser->addRole((int)$role_id);
             }
