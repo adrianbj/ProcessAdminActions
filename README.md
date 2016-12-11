@@ -23,6 +23,9 @@ Copies the content from a field on one page to the same field on another page.
 **Copy Table Field Rows To Other Page**
 Add the rows from a Table field on one page to the same field on another page.
 
+**Create Users Batcher
+Allows you to batch create users. This module requires the Email New User module and it should be configured to generate a password automatically.
+
 **Delete Unused Fields**
 Deletes fields that are not used by any templates.
 
