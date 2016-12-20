@@ -153,6 +153,15 @@ http://mysite.dev/processwire/setup/admin-actions/execute?action=TemplateFieldsB
 ```
 Note the "options" vs "execute" as the last path segment before the parameters.
 
+#### Calling an action via the API
+
+You can call an action easily via the API. Here's an example of copying content of a field from one page to another.
+
+Simply load the module, and call the action name as a method while passsing the required options as an array:
+```
+$modules->get("ProcessAdminActions")->CopyFieldContentToOtherPage(array('field' => 99, 'sourcePage' => 1131, 'destinationPage' => 1132));
+```
+
 #### Automatic Backup / Restore
 
 Before any action is executed, a full database backup is automatically made. You have a few options to run a restore if needed:
