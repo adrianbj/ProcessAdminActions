@@ -159,7 +159,12 @@ You can call an action easily via the API. Here's an example of copying content 
 
 Simply load the module, and call the action name as a method while passing the required options as an array:
 ```
-$modules->get("ProcessAdminActions")->CopyFieldContentToOtherPage(array('field' => 99, 'sourcePage' => 1131, 'destinationPage' => 1132));
+$options = array(
+   'field' => 99,
+   'sourcePage' => 1131,
+   'destinationPage' => 1132
+);
+$modules->get("ProcessAdminActions")->CopyFieldContentToOtherPage($options);
 ```
 
 #### Automatic Backup / Restore
