@@ -157,7 +157,7 @@ Note the "options" vs "execute" as the last path segment before the parameters.
 
 You can call an action easily via the API. Here's an example of copying content of a field from one page to another.
 
-Simply load the module, and call the action name as a method while passsing the required options as an array:
+Simply load the module, and call the action name as a method while passing the required options as an array:
 ```
 $modules->get("ProcessAdminActions")->CopyFieldContentToOtherPage(array('field' => 99, 'sourcePage' => 1131, 'destinationPage' => 1132));
 ```
