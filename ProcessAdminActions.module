@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => 25,
+            'version' => 26,
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -310,7 +310,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         $actionsCount=0;
         foreach($this->data as $action => $info) {
-            if($this->getActionPath($action) && count(array_intersect($info['roles'], $this->user->roles->each("id"))) !== 0) {
+            if($this->getActionPath($action) && isset($info['roles']) && count(array_intersect($info['roles'], $this->user->roles->each("id"))) !== 0) {
                 $row = array(
                     '<p><strong><a href="./options?action='.$action.'">'.$this->getActionName($action).'</a></strong></p>',
                     isset($info['description']) ? $info['description'] : '',
@@ -600,7 +600,15 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         if(count($this->actions) > count($this->data)) $this->error("You have new actions - please adjust approved roles, and click Submit to refresh this list.");
 
         $actionsCount=0;
+        $allData = array();
         foreach($this->actions as $action => $info) {
+            if(!$data) {
+                $allData[$info['name']]['roles'] = array(wire('roles')->get('superuser')->id);
+                $rolesValue = array(wire('roles')->get('superuser')->id);
+            }
+            else {
+                $rolesValue = isset($data[$info['name']]['roles']) ? $data[$info['name']]['roles'] : null;
+            }
             $rolesWrapper = new InputfieldWrapper();
             $fr = wire('modules')->get("InputfieldAsmSelect");
             $fr->attr('name', $info['name']);
@@ -608,7 +616,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             $fr->options = $rolesOptions;
             $fr->addClass('rolesSelect');
             $fr->setAsmSelectOption('sortable', false);
-            $fr->value = isset($data[$info['name']]['roles']) ? $data[$info['name']]['roles'] : array(wire('roles')->get('superuser')->id);
+            $fr->value = $rolesValue;
             $rolesWrapper->add($fr);
             $row = array(
                 '<strong>'.$this->getActionName($action).'</strong>',
@@ -620,8 +628,6 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             $table->row($row);
             $actionsCount++;
 
-            // prepare initial superuser role for each action for initial module install
-            $allData[$info['name']]['roles'] = array(wire('roles')->get('superuser')->id);
             // prepare initial description, notes, and author values
             $allData[$info['name']]['description'] = $info['description'];
             $allData[$info['name']]['notes'] = $info['notes'];

@@ -68,3 +68,44 @@ table.AdminDataList.adminactionsconfig td:nth-child(4), table.AdminDataList.admi
 select.rolesSelect {
     width: 100%;
 }
+
+/* inline ASM select thanks to @rolandtoth */
+table.adminactionsconfig .Inputfield[id^="wrap_"] {
+    background: transparent !important;
+}
+table.adminactionsconfig .InputfieldContent, table.adminactionsconfig label {
+    padding: 0.25em 0.25em 0 !important;
+    border: none !important;
+    background: transparent !important;
+}
+table.adminactionsconfig .asmList {
+    margin-top: 0.25em !important;
+}
+table.adminactionsconfig .asmListItem {
+    padding-left: 8px !important;
+    margin-right: 8px;
+    display: inline-block !important;
+    width: auto !important;
+    font-size: 14px;
+    background: transparent !important;
+    border-color: transparent !important;
+    color: inherit !important;
+}
+table.adminactionsconfig .asmListItem:hover .asmListItemLabel {
+    text-decoration: line-through !important;
+}
+table.adminactionsconfig .asmListItem .asmListItemRemove {
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0;
+    top: 1px;
+}
+table.adminactionsconfig .asmListItem .asmListItemRemove:not(:hover) i:before {
+    content: '\f007';
+}
+table.adminactionsconfig .asmListItem i {
+    margin-left: 2px;
+}
+table.adminactionsconfig .asmListItem i:not(:hover) {
+    color: #EA2262;
+}
