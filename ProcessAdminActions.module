@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => 24,
+            'version' => 25,
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -238,18 +238,36 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
      */
     public function ___executeRestore() {
         if($this->user->isSuperuser() || $this->user->hasRole('admin-actions-restore')) {
-            $backup = new WireDatabaseBackup($this->adminActionsCacheDir);
-            $backup->setDatabase($this->database);
-            $backup->setDatabaseConfig($this->config);
 
-            $success = $backup->restore($this->adminActionsCacheDir.$this->dbBackupFilename);
-            if($success) {
-                $this->message("Database successfully restored.");
+            if($this->input->post->restoreConfirm) {
+                $backup = new WireDatabaseBackup($this->adminActionsCacheDir);
+                $backup->setDatabase($this->database);
+                $backup->setDatabaseConfig($this->config);
+
+                $success = $backup->restore($this->adminActionsCacheDir.$this->dbBackupFilename);
+                if($success) {
+                    $this->message("Database successfully restored.");
+                }
+                else {
+                    $this->error("Sorry, there was a problem and the database could not be restored.");
+                }
+                $this->session->redirect('../');
             }
             else {
-                $this->error("Sorry, there was a problem and the database could not be restored.");
+                $form = $this->modules->get("InputfieldForm");
+                $form->name = 'restore';
+                $form->method = 'post';
+
+                $f = $this->modules->get("InputfieldSubmit");
+                $f->attr("id+name", "restoreConfirm");
+                $f->name = 'restoreConfirm';
+                $f->description = 'Restore entire site database to state before the action to last executed.';
+                $f->notes = 'Warning, this may take a minute or two, and cannot be undone!';
+                $f->value = 'Restore';
+                $form->add($f);
+
+                return '<h2>Restore</h2>' . $form->render();
             }
-            $this->session->redirect('../');
         }
         else {
             return 'Sorry, you do not have permission to run the restore feature.';
@@ -352,6 +370,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         if($this->user->isSuperuser()) {
             $this->config->scripts->add($this->config->urls->siteModules . 'ProcessAdminActions/ace-editor/ace.js');
+            $this->config->scripts->add($this->config->urls->siteModules . 'ProcessAdminActions/ace-setup.js');
             $f = $this->modules->get("InputfieldMarkup");
             $f->name = 'actionCode';
             $f->label = 'Action Code';
@@ -535,6 +554,8 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
      */
     public function getModuleConfigInputfields(array $data) {
 
+        $this->config->styles->add($this->config->urls->siteModules . __CLASS__ . '/' . __CLASS__ . '.css');
+
         $data = array_merge(self::getDefaultData(), $data);
 
         $rolesOptions = array();
@@ -555,35 +576,71 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $f->description = __('Remember that the roles must also have the "admin-actions" permission to use this module at all.');
         $wrapper->add($f);
 
-        foreach($this->actions as $action => $values) {
-            $f = wire('modules')->get("InputfieldAsmSelect");
-            $f->attr('name', $values['name']);
-            $f->label = $this->getActionName($values['name']);
-            $f->description = $values['description'];
-            $f->notes = $values['notes'];
-            $f->options = $rolesOptions;
-            $f->columnWidth = 20;
-            $f->setAsmSelectOption('sortable', false);
-            $f->value = isset($data[$values['name']]['roles']) ? $data[$values['name']]['roles'] : array(wire('roles')->get('superuser')->id);
-            $wrapper->add($f);
+        $f = wire('modules')->get("InputfieldMarkup");
+        $f->attr('name', 'table');
+        $table = wire('modules')->get("MarkupAdminDataTable");
+        $table->setEncodeEntities(false);
+        $table->setSortable(true);
+        $table->setClass('adminactionsconfig');
+        $table->headerRow(array(
+            __('Title'),
+            __('Info'),
+            __('Roles'),
+            __('Author')
+        ));
+
+        ksort($this->data);
+        // get main actions in module folder
+        $this->getActions(__DIR__ . '/actions', false);
+        // get private actions from /site/templates/adminActions folder
+        if(file_exists($customActionsDir = wire('config')->paths->templates.'AdminActions/')) {
+            $this->getActions($customActionsDir, false);
+        }
+        // if more actions in folders than in config, display a warning
+        if(count($this->actions) > count($this->data)) $this->error("You have new actions - please adjust approved roles, and click Submit to refresh this list.");
+
+        $actionsCount=0;
+        foreach($this->actions as $action => $info) {
+            $rolesWrapper = new InputfieldWrapper();
+            $fr = wire('modules')->get("InputfieldAsmSelect");
+            $fr->attr('name', $info['name']);
+            $fr->skipLabel = Inputfield::skipLabelHeader;
+            $fr->options = $rolesOptions;
+            $fr->addClass('rolesSelect');
+            $fr->setAsmSelectOption('sortable', false);
+            $fr->value = isset($data[$info['name']]['roles']) ? $data[$info['name']]['roles'] : array(wire('roles')->get('superuser')->id);
+            $rolesWrapper->add($fr);
+            $row = array(
+                '<strong>'.$this->getActionName($action).'</strong>',
+                (isset($info['description']) ? $info['description'] : '') . (isset($info['notes']) ? '<br /><span class="notes">'.$info['notes'].'</span>' : ''),
+                $rolesWrapper->render(),
+                isset($info['author']) ? '<span class="adminActionsAuthor">'.$info['author'].'<br />' . ($info['authorLinks'] ? $this->authorLinks($info['authorLinks']) : '') . '</span>' : ''
+
+            );
+            $table->row($row);
+            $actionsCount++;
 
             // prepare initial superuser role for each action for initial module install
-            $allData[$values['name']]['roles'] = array(wire('roles')->get('superuser')->id);
+            $allData[$info['name']]['roles'] = array(wire('roles')->get('superuser')->id);
             // prepare initial description, notes, and author values
-            $allData[$values['name']]['description'] = $values['description'];
-            $allData[$values['name']]['notes'] = $values['notes'];
-            $allData[$values['name']]['author'] = $values['author'];
-            $allData[$values['name']]['authorLinks'] = $values['authorLinks'];
+            $allData[$info['name']]['description'] = $info['description'];
+            $allData[$info['name']]['notes'] = $info['notes'];
+            $allData[$info['name']]['author'] = $info['author'];
+            $allData[$info['name']]['authorLinks'] = $info['authorLinks'];
+
         }
+        $f->attr('value', $table->render());
+        $wrapper->add($f);
 
         // save initial data when $data is empty on module install
         if(!$data) wire('modules')->saveModuleConfigData(wire('modules')->get("ProcessAdminActions"), $allData);
 
         // modify what is stored when settings saved so we can have the multidimensional array of data
         wire('modules')->addHookBefore('saveModuleConfigData', null, function($event) use ($allData) {
+            if($this->input->get->name !== 'ProcessAdminActions') return;
             $data = $event->arguments(1);
-            foreach($data as $action => $roles) {
-                if(isset($allData[$action])) $allData[$action]['roles'] = $roles;
+            foreach($this->input->post as $action => $info) {
+                if(isset($allData[$action]) && is_array($info)) $allData[$action]['roles'] = $info;
             }
             $event->arguments(1, $allData);
         });

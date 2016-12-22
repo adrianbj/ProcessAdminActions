@@ -10,7 +10,7 @@ table.AdminDataList.adminactions td:nth-child(3), table.AdminDataList.adminactio
     width: 35% !important;
 }
 
-table.AdminDataList.adminactions td:nth-child(4), table.AdminDataList.adminactions th:nth-child(3) {
+table.AdminDataList.adminactions td:nth-child(4), table.AdminDataList.adminactions th:nth-child(4) {
     width: 10% !important;
 }
 
@@ -45,4 +45,26 @@ table.AdminDataList.adminactions td:nth-child(4), table.AdminDataList.adminactio
     bottom: 0;
     left: 0;
     right: 0;
+}
+
+/* Config settings styles */
+
+table.AdminDataList.adminactionsconfig td:first-child, table.AdminDataList.adminactionsconfig th:first-child {
+    width: 20% !important;
+}
+
+table.AdminDataList.adminactionsconfig td:nth-child(2), table.AdminDataList.adminactionsconfig th:nth-child(2) {
+    width: 55% !important;
+}
+
+table.AdminDataList.adminactionsconfig td:nth-child(3), table.AdminDataList.adminactionsconfig th:nth-child(3) {
+    width: 15% !important;
+}
+
+table.AdminDataList.adminactionsconfig td:nth-child(4), table.AdminDataList.adminactionsconfig th:nth-child(4) {
+    width: 10% !important;
+}
+
+select.rolesSelect {
+    width: 100%;
 }

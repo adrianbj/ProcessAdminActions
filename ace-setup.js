@@ -1,4 +1,4 @@
-$( document ).ready(function() {
+$(document).ready(function() {
 	var adminActionsCode = ace.edit("actionCodeViewer");
 	adminActionsCode.setReadOnly(true);
 	adminActionsCode.setTheme("ace/theme/tomorrow_night");
