@@ -73,6 +73,7 @@ class UserRolesPermissionsBatcher extends ProcessAdminActions {
 
         foreach($options['users'] as $user_id) {
             $u = $this->users->get((int)$user_id);
+            $u->of(false);
             foreach($options['roles'] as $role_id) {
                 if($options['addOrRemove'] == "add") {
                     $u->addRole((int)$role_id);
@@ -82,10 +83,12 @@ class UserRolesPermissionsBatcher extends ProcessAdminActions {
                 }
             }
             $u->save();
+            $u->of(true);
         }
 
         foreach($options['roles'] as $role_id) {
             $role = $this->roles->get((int)$role_id);
+            $role->of(false);
             foreach($options['permissions'] as $permission) {
                 if($options['addOrRemove'] == "add") {
                     $role->addPermission((int)$permission);
@@ -95,6 +98,7 @@ class UserRolesPermissionsBatcher extends ProcessAdminActions {
                 }
             }
             $role->save();
+            $role->of(true);
         }
 
         return true;

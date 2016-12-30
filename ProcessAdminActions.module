@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => 26,
+            'version' => 27,
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -196,32 +196,16 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         }
 
         // backup database before executing action
-        if (!file_exists($this->adminActionsCacheDir)) wireMkdir($this->adminActionsCacheDir);
-
-        $backup = new WireDatabaseBackup($this->adminActionsCacheDir);
-        $backup->setDatabase($this->database);
-        $backup->setDatabaseConfig($this->config);
-        $file = $backup->backup(array('filename' => $this->dbBackupFilename));
-
-        $restoreDbCode =
-        "<?php\n" .
-        "if(file_exists('".$this->adminActionsCacheDir.$this->dbBackupFilename."')) {\n" .
-            "\t\$db = new PDO('mysql:host={$this->config->dbHost};dbname={$this->config->dbName}', '{$this->config->dbUser}', '{$this->config->dbPass}');\n" .
-            "\t\$sql = file_get_contents('" . $this->adminActionsCacheDir . $this->dbBackupFilename . "');\n" .
-            "\t\$qr = \$db->query(\$sql);\n" .
-        "}\n" .
-        "if(isset(\$qr) && \$qr) {\n" .
-            "\techo 'The database was successfully restored.';\n" .
-        "}\n" .
-        "else {\n" .
-        "\techo 'Sorry, there was a problem and the database could not be restored.';\n" .
-        "}";
-
-        if(!file_put_contents($this->adminActionsCacheDir . 'restoredb.php', $restoreDbCode, LOCK_EX)) throw new WireException("Unable to write file: " . $this->adminActionsCacheDir . 'restoredb.php');
+        if($this->data['dbBackup'] == 'automatic' || ($this->data['dbBackup'] == 'optional' && (bool)$form->get("dbBackup")->value === true)) {
+            $this->backupDb();
+            $restoreLink = '<br /><div class="adminActionsWarning"><p>If you find a problem with the changes, you can <a href="./restore/">restore</a> the entire database.</p></div>';
+        }
+        else {
+            $restoreLink = '';
+        }
 
         // execute action and render output
         if($this->action->executeAction($options) && !$form->getErrors()) {
-            $restoreLink = '<br /><div class="adminActionsWarning"><p>If you find a problem with the changes, you can <a href="./restore/">restore</a> the entire database.</p></div>';
             return $actionTitle . '<div class="adminActionsSuccess"><p>The '.$actionName.' action was completed successfully.</p><p>' . $this->action->successMessage . '</p></div>' . $restoreLink;
         }
         else {
@@ -368,7 +352,8 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $f->notes = $this->action->notes;
         $form->add($f);
 
-        if($this->user->isSuperuser()) {
+        $urlParts = explode('/', trim($this->input->url,'/'));
+        if($this->user->isSuperuser() && end($urlParts) === 'options') {
             $this->config->scripts->add($this->config->urls->siteModules . 'ProcessAdminActions/ace-editor/ace.js');
             $this->config->scripts->add($this->config->urls->siteModules . 'ProcessAdminActions/ace-setup.js');
             $f = $this->modules->get("InputfieldMarkup");
@@ -382,6 +367,15 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         }
 
         if(method_exists($this->action,'defineOptions')) $form->add($this->action->defineOptions());
+
+        if($this->data['dbBackup'] == 'optional') {
+            $f = wire('modules')->get("InputfieldCheckbox");
+            $f->name = 'dbBackup';
+            $f->label = __('Database Backup');
+            $f->description = __('Do you want to automatically backup the database before executing this action?');
+            $f->notes = __('This is highly recommended!');
+            $form->add($f);            
+        }
 
         $f = $this->modules->get("InputfieldSubmit");
         $f->name = 'submit';
@@ -537,11 +531,38 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
     }
 
 
+    private function backupDb() {
+        if (!file_exists($this->adminActionsCacheDir)) wireMkdir($this->adminActionsCacheDir);
+
+        $backup = new WireDatabaseBackup($this->adminActionsCacheDir);
+        $backup->setDatabase($this->database);
+        $backup->setDatabaseConfig($this->config);
+        $file = $backup->backup(array('filename' => $this->dbBackupFilename));
+
+        $restoreDbCode =
+        "<?php\n" .
+        "if(file_exists('".$this->adminActionsCacheDir.$this->dbBackupFilename."')) {\n" .
+            "\t\$db = new PDO('mysql:host={$this->config->dbHost};dbname={$this->config->dbName}', '{$this->config->dbUser}', '{$this->config->dbPass}');\n" .
+            "\t\$sql = file_get_contents('" . $this->adminActionsCacheDir . $this->dbBackupFilename . "');\n" .
+            "\t\$qr = \$db->query(\$sql);\n" .
+        "}\n" .
+        "if(isset(\$qr) && \$qr) {\n" .
+            "\techo 'The database was successfully restored.';\n" .
+        "}\n" .
+        "else {\n" .
+        "\techo 'Sorry, there was a problem and the database could not be restored.';\n" .
+        "}";
+
+        if(!file_put_contents($this->adminActionsCacheDir . 'restoredb.php', $restoreDbCode, LOCK_EX)) throw new WireException("Unable to write file: " . $this->adminActionsCacheDir . 'restoredb.php');
+    }
+
+
     public function __call($method, $args) {
         if(!$this->has($method)) return parent::__call($method, $args);
         require_once $this->getActionPath($method);
         $this->action = new $method;
         $this->action->executeAction($args[0]);
+        if(array_key_exists('dbBackup', $args[0])) $this->backupDb();
     }
 
 
@@ -557,6 +578,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $this->config->styles->add($this->config->urls->siteModules . __CLASS__ . '/' . __CLASS__ . '.css');
 
         $data = array_merge(self::getDefaultData(), $data);
+        $allData = array();
 
         $rolesOptions = array();
         foreach(wire('roles')->find("name!=guest") as $role) $rolesOptions[$role->id] = $role->name;
@@ -570,11 +592,26 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             $this->getActions($customActionsDir);
         }
 
-        $f = wire('modules')->get("InputfieldMarkup");
-        $f->name = 'instructions';
-        $f->label = __('Choose roles that will be able to use each action');
-        $f->description = __('Remember that the roles must also have the "admin-actions" permission to use this module at all.');
+        if(!array_key_exists('dbBackup', $data)) {
+            $allData['dbBackup'] = 'automatic';
+        }
+        $f = wire('modules')->get("InputfieldRadios");
+        $f->name = 'dbBackup';
+        $f->label = __('Database Backup');
+        $f->description = __('Do you want to backup the database before each action is executed?');
+        $f->notes = __('"Optional" adds a checbox to the options form before the user executes an action.');
+        $f->required = true;
+        $f->addOption('automatic', 'Automatic');
+        $f->addOption('optional', 'Optional');
+        $f->addOption('disabled', 'Disabled');        
+        $f->attr('value', isset($data['dbBackup']) ? $data['dbBackup'] : $allData['dbBackup']);        
         $wrapper->add($f);
+
+        $fieldset = wire('modules')->get("InputfieldFieldset");
+        $fieldset->name = 'instructions';
+        $fieldset->label = __('Choose roles that will be able to use each action');
+        $fieldset->description = __('Remember that the roles must also have the "admin-actions" permission to use this module at all.');
+        $wrapper->add($fieldset);        
 
         $f = wire('modules')->get("InputfieldMarkup");
         $f->attr('name', 'table');
@@ -597,10 +634,9 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             $this->getActions($customActionsDir, false);
         }
         // if more actions in folders than in config, display a warning
-        if(count($this->actions) > count($this->data)) $this->error("You have new actions - please adjust approved roles, and click Submit to refresh this list.");
+        if(count($this->actions) > count($this->data)) $this->error("You have new actions - please adjust approved roles, and click Submit to save.");
 
         $actionsCount=0;
-        $allData = array();
         foreach($this->actions as $action => $info) {
             if(!$data) {
                 $allData[$info['name']]['roles'] = array(wire('roles')->get('superuser')->id);
@@ -636,7 +672,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         }
         $f->attr('value', $table->render());
-        $wrapper->add($f);
+        $fieldset->add($f);
 
         // save initial data when $data is empty on module install
         if(!$data) wire('modules')->saveModuleConfigData(wire('modules')->get("ProcessAdminActions"), $allData);
@@ -644,7 +680,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         // modify what is stored when settings saved so we can have the multidimensional array of data
         wire('modules')->addHookBefore('saveModuleConfigData', null, function($event) use ($allData) {
             if($this->input->get->name !== 'ProcessAdminActions') return;
-            $data = $event->arguments(1);
+            $allData['dbBackup'] = $this->input->post->dbBackup;            
             foreach($this->input->post as $action => $info) {
                 if(isset($allData[$action]) && is_array($info)) $allData[$action]['roles'] = $info;
             }
