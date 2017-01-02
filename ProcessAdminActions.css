@@ -54,7 +54,7 @@ table.AdminDataList.adminactionsconfig td:first-child, table.AdminDataList.admin
 }
 
 table.AdminDataList.adminactionsconfig td:nth-child(2), table.AdminDataList.adminactionsconfig th:nth-child(2) {
-    width: 55% !important;
+    width: 50% !important;
 }
 
 table.AdminDataList.adminactionsconfig td:nth-child(3), table.AdminDataList.adminactionsconfig th:nth-child(3) {
@@ -62,7 +62,11 @@ table.AdminDataList.adminactionsconfig td:nth-child(3), table.AdminDataList.admi
 }
 
 table.AdminDataList.adminactionsconfig td:nth-child(4), table.AdminDataList.adminactionsconfig th:nth-child(4) {
-    width: 10% !important;
+    width: 5% !important;
+}
+
+table.AdminDataList.adminactionsconfig td:nth-child(5), table.AdminDataList.adminactionsconfig th:nth-child(5) {
+    width: 20% !important;
 }
 
 select.rolesSelect {

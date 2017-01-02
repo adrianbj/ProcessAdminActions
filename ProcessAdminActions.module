@@ -20,31 +20,60 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => 27,
+            'version' => 28,
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
-            'nav' => array(
-                array(
-                    'url' => 'restore/',
-                    'label' => 'Restore',
-                    'icon' => 'reply',
-                    'permission' => 'admin-actions-restore'
-                )
-            ),
+            'useNavJSON' => true,
             'page' => array(
                 'name' => 'admin-actions',
                 'parent' => 'setup',
                 'title' => 'Admin Actions'
             ),
-            // name of permission required of users to execute this Process
-            'permission' => 'admin-actions',
-            // automatically installed permissions
+            'permission' => 'page-view',
+            'permissionMethod' => 'permissionCheck',
             'permissions' => array(
                 'admin-actions' => 'Run selected AdminActions actions',
                 'admin-actions-restore' => 'Run AdminActions restore feature'
             )
         );
+    }
+
+
+    public function ___executeNavJSON(array $options = array()) {
+        $options['items'] = array();
+        $i=0;
+        $options['items'][$i]['id'] = 'restore/';
+        $options['items'][$i]['label'] = 'Restore';
+        $options['items'][$i]['icon'] = 'reply';
+        $i++;
+        foreach($this->data as $action => $info) {
+            if(isset($info['menu']) && $info['menu'] == '1' && isset($info['roles']) && count(array_intersect($info['roles'], $this->user->roles->each("id"))) !== 0) {
+                $options['items'][$i]['id'] = 'options?action='.$action;
+                $options['items'][$i]['label'] = $this->getActionName($action);
+                $i++;
+            }
+        }
+        $options['itemLabel'] = 'label';
+        $options['edit'] = $this->config->urls->admin.'setup/admin-actions/{id}';
+        $options['add'] = null;
+        $options['iconKey'] = 'icon';
+        $options['sort'] = false;
+        return parent::___executeNavJSON($options);
+    }
+
+
+    public static function permissionCheck(array $data) {
+        $user = $data['user'];
+        $wire = $data['wire'];
+        // if in admin/backend, then require "admin-actions" permission
+        if(strpos($wire->input->url, $wire->config->urls->admin) === 0 && !$user->hasPermission('admin-actions')) {
+            return false;
+        }
+        // else in frontend, so allow full access to call actions via the API
+        else {
+            return true;
+        }
     }
 
 
@@ -245,7 +274,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                 $f = $this->modules->get("InputfieldSubmit");
                 $f->attr("id+name", "restoreConfirm");
                 $f->name = 'restoreConfirm';
-                $f->description = 'Restore entire site database to state before the action to last executed.';
+                $f->description = 'Restore entire site database to state before the last executed action at '.date("Y-m-d H:i:s T", filemtime($this->adminActionsCacheDir.$this->dbBackupFilename));
                 $f->notes = 'Warning, this may take a minute or two, and cannot be undone!';
                 $f->value = 'Restore';
                 $form->add($f);
@@ -374,7 +403,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             $f->label = __('Database Backup');
             $f->description = __('Do you want to automatically backup the database before executing this action?');
             $f->notes = __('This is highly recommended!');
-            $form->add($f);            
+            $form->add($f);
         }
 
         $f = $this->modules->get("InputfieldSubmit");
@@ -603,15 +632,15 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $f->required = true;
         $f->addOption('automatic', 'Automatic');
         $f->addOption('optional', 'Optional');
-        $f->addOption('disabled', 'Disabled');        
-        $f->attr('value', isset($data['dbBackup']) ? $data['dbBackup'] : $allData['dbBackup']);        
+        $f->addOption('disabled', 'Disabled');
+        $f->attr('value', isset($data['dbBackup']) ? $data['dbBackup'] : $allData['dbBackup']);
         $wrapper->add($f);
 
         $fieldset = wire('modules')->get("InputfieldFieldset");
         $fieldset->name = 'instructions';
         $fieldset->label = __('Choose roles that will be able to use each action');
         $fieldset->description = __('Remember that the roles must also have the "admin-actions" permission to use this module at all.');
-        $wrapper->add($fieldset);        
+        $wrapper->add($fieldset);
 
         $f = wire('modules')->get("InputfieldMarkup");
         $f->attr('name', 'table');
@@ -623,6 +652,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             __('Title'),
             __('Info'),
             __('Roles'),
+            __('In Menu'),
             __('Author')
         ));
 
@@ -647,17 +677,26 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             }
             $rolesWrapper = new InputfieldWrapper();
             $fr = wire('modules')->get("InputfieldAsmSelect");
-            $fr->attr('name', $info['name']);
+            $fr->attr('name', 'roles_'.$info['name']);
             $fr->skipLabel = Inputfield::skipLabelHeader;
             $fr->options = $rolesOptions;
             $fr->addClass('rolesSelect');
             $fr->setAsmSelectOption('sortable', false);
             $fr->value = $rolesValue;
             $rolesWrapper->add($fr);
+
+            $menuWrapper = new InputfieldWrapper();
+            $fm = wire('modules')->get("InputfieldCheckbox");
+            $fm->attr('name', 'menu_'.$info['name']);
+            $fm->skipLabel = Inputfield::skipLabelHeader;
+            $fm->label2 = ' ';
+            $fm->attr('checked', isset($data[$info['name']]['menu']) && $data[$info['name']]['menu'] == '1' ? 'checked' : '' );
+            $menuWrapper->add($fm);
             $row = array(
                 '<strong>'.$this->getActionName($action).'</strong>',
                 (isset($info['description']) ? $info['description'] : '') . (isset($info['notes']) ? '<br /><span class="notes">'.$info['notes'].'</span>' : ''),
                 $rolesWrapper->render(),
+                $menuWrapper->render(),
                 isset($info['author']) ? '<span class="adminActionsAuthor">'.$info['author'].'<br />' . ($info['authorLinks'] ? $this->authorLinks($info['authorLinks']) : '') . '</span>' : ''
 
             );
@@ -680,9 +719,16 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         // modify what is stored when settings saved so we can have the multidimensional array of data
         wire('modules')->addHookBefore('saveModuleConfigData', null, function($event) use ($allData) {
             if($this->input->get->name !== 'ProcessAdminActions') return;
-            $allData['dbBackup'] = $this->input->post->dbBackup;            
+            $allData['dbBackup'] = $this->input->post->dbBackup;
             foreach($this->input->post as $action => $info) {
-                if(isset($allData[$action]) && is_array($info)) $allData[$action]['roles'] = $info;
+                if (strpos($action, 'roles_') !== false) {
+                    $action = str_replace('roles_', '', $action);
+                    if(isset($allData[$action])) $allData[$action]['roles'] = $info;
+                }
+                if (strpos($action, 'menu_') !== false) {
+                    $action = str_replace('menu_', '', $action);
+                    if(isset($allData[$action])) $allData[$action]['menu'] = $info;
+                }
             }
             $event->arguments(1, $allData);
         });
