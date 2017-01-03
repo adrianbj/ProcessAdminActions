@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => 28,
+            'version' => 29,
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -43,10 +43,12 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
     public function ___executeNavJSON(array $options = array()) {
         $options['items'] = array();
         $i=0;
-        $options['items'][$i]['id'] = 'restore/';
-        $options['items'][$i]['label'] = 'Restore';
-        $options['items'][$i]['icon'] = 'reply';
-        $i++;
+        if($this->user->isSuperuser() || $this->user->hasPermission('admin-actions-restore')) {
+            $options['items'][$i]['id'] = 'restore/';
+            $options['items'][$i]['label'] = 'Restore';
+            $options['items'][$i]['icon'] = 'reply';
+            $i++;
+        }
         foreach($this->data as $action => $info) {
             if(isset($info['menu']) && $info['menu'] == '1' && isset($info['roles']) && count(array_intersect($info['roles'], $this->user->roles->each("id"))) !== 0) {
                 $options['items'][$i]['id'] = 'options?action='.$action;
@@ -250,7 +252,8 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
      *
      */
     public function ___executeRestore() {
-        if($this->user->isSuperuser() || $this->user->hasRole('admin-actions-restore')) {
+
+        if($this->user->isSuperuser() || $this->user->hasPermission('admin-actions-restore')) {
 
             if($this->input->post->restoreConfirm) {
                 $backup = new WireDatabaseBackup($this->adminActionsCacheDir);
