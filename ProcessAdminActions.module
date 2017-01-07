@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => 31,
+            'version' => 32,
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -667,9 +667,14 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         // get main actions in module folder
         $this->getActions(__DIR__ . '/actions/');
 
-        // if more actions in folders than in config, display a warning
-        if((count($this->actions['site'] + $this->actions['core'])) > (count($this->data['site']) + count($this->data['core']))) {
-            $this->error("There are new actions available (highlighted in orange) - please adjust approved roles and menu status, and click Submit to save.");
+        if($data) {
+            // if more actions in folders than in config, display a warning
+            if((count($this->actions['site'] + $this->actions['core'])) > (count($this->data['site']) + count($this->data['core']))) {
+                $this->error("There are new actions available (highlighted in orange) - please adjust approved roles and menu status, and click Submit to save.");
+            }
+        }
+        else {
+            $this->warning("Please check the \"Roles\" and \"In Menu\" settings for all the actions and adjust for your needs.");
         }
 
         if(!array_key_exists('dbBackup', $data)) {
@@ -750,7 +755,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                 $fm->label2 = ' ';
                 $fm->attr('checked', isset($data[$actionType][$info['name']]['menu']) && $data[$actionType][$info['name']]['menu'] == '1' ? 'checked' : '' );
                 $menuWrapper->add($fm);
-                $rowClass = !array_key_exists($action, $data['site']) && !array_key_exists($action, $data['core']) ? 'newAction' : '';
+                $rowClass = $data && !array_key_exists($action, $data['site']) && !array_key_exists($action, $data['core']) ? 'newAction' : '';
                 $row = array(
                     '<strong>'.$this->getActionName($action).'</strong>',
                     (isset($info['description']) ? $info['description'] : '') . (isset($info['notes']) ? '<br /><span class="notes">'.$info['notes'].'</span>' : ''),
