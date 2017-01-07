@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => 33,
+            'version' => 34,
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -796,7 +796,9 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             foreach($this->input->post as $action => $info) {
                 if (strpos($action, 'roles_') !== false) {
                     $action = str_replace('roles_', '', $action);
-                    if(isset($allData[$this->actionTypes[$action]][$action])) $allData[$this->actionTypes[$action]][$action]['roles'] = $info;
+                    if(isset($this->actionTypes[$action]) && isset($allData[$this->actionTypes[$action]][$action])) {
+                        $allData[$this->actionTypes[$action]][$action]['roles'] = $info;
+                    }
                 }
                 if (strpos($action, 'menu_') !== false) {
                     $action = str_replace('menu_', '', $action);
