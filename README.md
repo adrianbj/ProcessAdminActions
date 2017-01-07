@@ -35,6 +35,9 @@ Deletes templates that are not used by any pages.
 **Field Set Or Search And Replace**
 Set field values, or search and replace text in field values from a filtered selection of pages and fields.
 
+**FTP Files to Page**
+Add files/images from a folder to a selected page.
+
 **Page Active Languages Batcher**
 Lets you enable or disable active status of multiple languages on multiple pages at once.
 
