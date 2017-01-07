@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => 32,
+            'version' => 33,
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -667,7 +667,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         // get main actions in module folder
         $this->getActions(__DIR__ . '/actions/');
 
-        if($data) {
+        if(isset($this->data['core'])) {
             // if more actions in folders than in config, display a warning
             if((count($this->actions['site'] + $this->actions['core'])) > (count($this->data['site']) + count($this->data['core']))) {
                 $this->error("There are new actions available (highlighted in orange) - please adjust approved roles and menu status, and click Submit to save.");
@@ -731,7 +731,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             ));
 
             foreach($actionsList as $action => $info) {
-                if(!$data) {
+                if(!$data || !isset($data['core'])) {
                     $allData[$actionType][$info['name']]['roles'] = array(wire('roles')->get('superuser')->id);
                     $rolesValue = array(wire('roles')->get('superuser')->id);
                 }
@@ -755,7 +755,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                 $fm->label2 = ' ';
                 $fm->attr('checked', isset($data[$actionType][$info['name']]['menu']) && $data[$actionType][$info['name']]['menu'] == '1' ? 'checked' : '' );
                 $menuWrapper->add($fm);
-                $rowClass = $data && !array_key_exists($action, $data['site']) && !array_key_exists($action, $data['core']) ? 'newAction' : '';
+                $rowClass = isset($data['core']) && !array_key_exists($action, $data['site']) && !array_key_exists($action, $data['core']) ? 'newAction' : '';
                 $row = array(
                     '<strong>'.$this->getActionName($action).'</strong>',
                     (isset($info['description']) ? $info['description'] : '') . (isset($info['notes']) ? '<br /><span class="notes">'.$info['notes'].'</span>' : ''),
@@ -790,6 +790,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             if($this->input->get->name !== 'ProcessAdminActions') return;
 
             $this->errors('clear');
+            $this->warnings('clear');
 
             $allData['dbBackup'] = $this->input->post->dbBackup;
             foreach($this->input->post as $action => $info) {
