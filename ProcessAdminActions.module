@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => 30,
+            'version' => 31,
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -49,11 +49,15 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             $options['items'][$i]['icon'] = 'reply';
             $i++;
         }
-        foreach($this->data as $action => $info) {
-            if(isset($info['menu']) && $info['menu'] == '1' && isset($info['roles']) && count(array_intersect($info['roles'], $this->user->roles->each("id"))) !== 0) {
-                $options['items'][$i]['id'] = 'options?action='.$action;
-                $options['items'][$i]['label'] = $this->getActionName($action);
-                $i++;
+        foreach($this->data as $actionType => $actions) {
+            if(is_array($actions)) {
+                foreach($actions as $action => $info) {
+                    if(isset($info['menu']) && $info['menu'] == '1' && isset($info['roles']) && count(array_intersect($info['roles'], $this->user->roles->each("id"))) !== 0) {
+                        $options['items'][$i]['id'] = 'options?action='.$action;
+                        $options['items'][$i]['label'] = $this->getActionName($action);
+                        $i++;
+                    }
+                }
             }
         }
         $options['itemLabel'] = 'label';
@@ -85,6 +89,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
      */
     protected $data = array();
     protected $actions = array();
+    protected $actionTypes = array();
     protected $hasPermission = false;
     protected $adminActionsCacheDir;
     protected $dbBackupFilename;
@@ -117,9 +122,12 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
     public function init() {
         parent::init();
+        $this->modules->get("JqueryWireTabs");
+
+        $this->getActionTypes();
 
         if($this->input->get->action) {
-            if(count(array_intersect($this->data[$this->input->get->action]['roles'], $this->user->roles->each("id"))) !== 0) {
+            if(count(array_intersect($this->data[$this->actionTypes[$this->input->get->action]][$this->input->get->action]['roles'], $this->user->roles->each("id"))) !== 0) {
                 require_once $this->getActionPath($this->input->get->action);
                 $this->action = new $this->input->get->action;
                 $this->hasPermission = true;
@@ -301,45 +309,65 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $form->name = 'select';
         $form->method = 'post';
 
-        $f = wire('modules')->get("InputfieldMarkup");
-        $f->attr('name', 'table');
-        $table = wire('modules')->get("MarkupAdminDataTable");
-        $table->setEncodeEntities(false);
-        $table->setSortable(true);
-        $table->setClass('adminactions');
-        $table->headerRow(array(
-            __('Title'),
-            __('Description'),
-            __('Notes'),
-            __('Author')
-        ));
-
-        ksort($this->data);
-        // get main actions in module folder
-        $this->getActions(__DIR__ . '/actions', false);
-        // get private actions from /site/templates/adminActions folder
-        if(file_exists($customActionsDir = wire('config')->paths->templates.'AdminActions/')) {
-            $this->getActions($customActionsDir, false);
-        }
-        // if more actions in folders than in config, display a warning
-        if(count($this->actions) > count($this->data)) $this->error("You have new actions - please visit the module config settings, adjust approved roles, and click Submit to refresh this list.");
+        $tabsWrapper = new InputfieldWrapper();
+        $tabsWrapper->attr("id", "ActionsList");
+        $tabsWrapper->attr("title", "Actions");
 
         $actionsCount=0;
-        foreach($this->data as $action => $info) {
-            if($this->getActionPath($action) && isset($info['roles']) && count(array_intersect($info['roles'], $this->user->roles->each("id"))) !== 0) {
-                $row = array(
-                    '<p><strong><a href="./options?action='.$action.'">'.$this->getActionName($action).'</a></strong></p>',
-                    isset($info['description']) ? $info['description'] : '',
-                    isset($info['notes']) ? '<span class="notes">'.$info['notes'].'</span>' : '',
-                    isset($info['author']) ? '<span class="adminActionsAuthor">'.$info['author'].'<br />' . ($info['authorLinks'] ? $this->authorLinks($info['authorLinks']) : '') . '</span>' : '',
+        foreach($this->data as $actionType => $actionsList) {
 
-                );
-                $table->row($row);
-                $actionsCount++;
+            $tab = $this->wire(new InputfieldWrapper());
+            $tab->attr('id', 'tab_'.$actionType.'_actions');
+            $tab->attr('title', ucfirst($actionType));
+            $tab->attr('class', 'WireTab');
+
+            $f = wire('modules')->get("InputfieldMarkup");
+            $f->attr('name', 'table');
+            $table = wire('modules')->get("MarkupAdminDataTable");
+            $table->setEncodeEntities(false);
+            $table->setSortable(true);
+            $table->setClass('adminactions');
+            $table->headerRow(array(
+                __('Title'),
+                __('Description'),
+                __('Notes'),
+                __('Author')
+            ));
+
+            ksort($this->data);
+
+            // get main actions in module folder
+            $this->getActions(__DIR__ . '/actions', false);
+            // get private actions from /site/templates/adminActions folder
+            if(file_exists($customActionsDir = wire('config')->paths->templates.'AdminActions/')) {
+                $this->getActions($customActionsDir, false);
             }
+
+            // if more actions in folders than in config, display a warning
+            if((count($this->actions['site'] + $this->actions['core'])) > (count($this->data['site']) + count($this->data['core']))) $this->error("There are new actions available - please visit the module config settings to adjust approved roles and menu status.");
+
+            if(is_array($actionsList)) {
+                foreach($actionsList as $action => $info) {
+                    if($this->getActionPath($action) && isset($info['roles']) && count(array_intersect($info['roles'], $this->user->roles->each("id"))) !== 0) {
+                        $row = array(
+                            '<p><strong><a href="./options?action='.$action.'">'.$this->getActionName($action).'</a></strong></p>',
+                            isset($info['description']) ? $info['description'] : '',
+                            isset($info['notes']) ? '<span class="notes">'.$info['notes'].'</span>' : '',
+                            isset($info['author']) ? '<span class="adminActionsAuthor">'.$info['author'].'<br />' . ($info['authorLinks'] ? $this->authorLinks($info['authorLinks']) : '') . '</span>' : '',
+
+                        );
+                        $table->row($row);
+                        $actionsCount++;
+                    }
+                }
+            }
+            $f->attr('value', $table->render());
+
+            $tab->add($f);
+            $tabsWrapper->add($tab);
         }
-        $f->attr('value', $table->render());
-        $form->add($f);
+        $form->add($tabsWrapper);
+
 
         if($actionsCount > 0) {
             return $form;
@@ -444,6 +472,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             if($file->isDot()) continue;
             if(substr($file->getBasename(), 0, 1) == '.') continue;
             if($file->isFile()) {
+                $actionType = strpos($this->config->paths->templates.'AdminActions/', $folderPath) !== false ? 'site' : 'core';
                 $basename = $file->getBasename();
                 if(!strpos($basename, '.action')) continue;
                 if(!preg_match('/^([A-Z][a-zA-Z0-9_]+)\.action\.php$/', $basename, $matches)) continue;
@@ -451,12 +480,13 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                 if($instantiate) {
                     require_once $this->getActionPath($className);
                     $action = new $className;
-                    $this->actions[$className]['description'] = $action->description;
-                    $this->actions[$className]['notes'] = $action->notes;
-                    $this->actions[$className]['author'] = $action->author;
-                    $this->actions[$className]['authorLinks'] = $action->authorLinks;
+                    $this->actions[$actionType][$className]['description'] = $action->description;
+                    $this->actions[$actionType][$className]['notes'] = $action->notes;
+                    $this->actions[$actionType][$className]['author'] = $action->author;
+                    $this->actions[$actionType][$className]['authorLinks'] = $action->authorLinks;
                 }
-                $this->actions[$className]['name'] = $className;
+                $this->actions[$actionType][$className]['name'] = $className;
+                $this->actionTypes[$className] = $actionType;
             }
         }
     }
@@ -563,6 +593,18 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
     }
 
 
+    private function getActionTypes() {
+        // populate array of actionType (site or core) for each action
+        foreach($this->data as $actionType => $actions) {
+            if(is_array($actions)) {
+                foreach($actions as $action => $info) {
+                    $this->actionTypes[$action] = $actionType;
+                }
+            }
+        }
+    }
+
+
     private function backupDb() {
         if (!file_exists($this->adminActionsCacheDir)) wireMkdir($this->adminActionsCacheDir);
 
@@ -607,6 +649,9 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
      */
     public function getModuleConfigInputfields(array $data) {
 
+        $this->modules->get("JqueryWireTabs");
+
+        $this->config->scripts->add($this->config->urls->siteModules . __CLASS__ . '/' . __CLASS__ . '.js');
         $this->config->styles->add($this->config->urls->siteModules . __CLASS__ . '/' . __CLASS__ . '.css');
 
         $data = array_merge(self::getDefaultData(), $data);
@@ -615,18 +660,24 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $rolesOptions = array();
         foreach(wire('roles')->find("name!=guest") as $role) $rolesOptions[$role->id] = $role->name;
 
-        $wrapper = new InputfieldWrapper();
-
-        // get main actions in module folder
-        $this->getActions(__DIR__ . '/actions/');
         // get private actions from /site/templates/adminActions folder
         if(file_exists($customActionsDir = wire('config')->paths->templates.'AdminActions/')) {
             $this->getActions($customActionsDir);
+        }
+        // get main actions in module folder
+        $this->getActions(__DIR__ . '/actions/');
+
+        // if more actions in folders than in config, display a warning
+        if((count($this->actions['site'] + $this->actions['core'])) > (count($this->data['site']) + count($this->data['core']))) {
+            $this->error("There are new actions available (highlighted in orange) - please adjust approved roles and menu status, and click Submit to save.");
         }
 
         if(!array_key_exists('dbBackup', $data)) {
             $allData['dbBackup'] = 'automatic';
         }
+
+        $wrapper = new InputfieldWrapper();
+
         $f = wire('modules')->get("InputfieldRadios");
         $f->name = 'dbBackup';
         $f->label = __('Database Backup');
@@ -643,78 +694,88 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $fieldset->name = 'instructions';
         $fieldset->label = __('Choose roles that will be able to use each action');
         $fieldset->description = __('Remember that the roles must also have the "admin-actions" permission to use this module at all.');
+        $fieldset->value = '<br />';
         $wrapper->add($fieldset);
 
-        $f = wire('modules')->get("InputfieldMarkup");
-        $f->attr('name', 'table');
-        $table = wire('modules')->get("MarkupAdminDataTable");
-        $table->setEncodeEntities(false);
-        $table->setSortable(true);
-        $table->setClass('adminactionsconfig');
-        $table->headerRow(array(
-            __('Title'),
-            __('Info'),
-            __('Roles'),
-            __('In Menu'),
-            __('Author')
-        ));
+        $tabsWrapper = new InputfieldWrapper();
+        $tabsWrapper->attr("id", "ActionsList");
+        $tabsWrapper->attr("title", "Actions");
 
         ksort($this->data);
-        // get main actions in module folder
-        $this->getActions(__DIR__ . '/actions', false);
-        // get private actions from /site/templates/adminActions folder
-        if(file_exists($customActionsDir = wire('config')->paths->templates.'AdminActions/')) {
-            $this->getActions($customActionsDir, false);
-        }
-        // if more actions in folders than in config, display a warning
-        if(count($this->actions) > count($this->data)) $this->error("You have new actions - please adjust approved roles, and click Submit to save.");
 
         $actionsCount=0;
-        foreach($this->actions as $action => $info) {
-            if(!$data) {
-                $allData[$info['name']]['roles'] = array(wire('roles')->get('superuser')->id);
-                $rolesValue = array(wire('roles')->get('superuser')->id);
+        foreach($this->actions as $actionType => $actionsList) {
+
+            $tab = $this->wire(new InputfieldWrapper());
+            $tab->attr('id', 'tab_'.$actionType.'_actions');
+            $tab->attr('title', ucfirst($actionType));
+            $tab->attr('class', 'WireTab');
+
+            $f = wire('modules')->get("InputfieldMarkup");
+            $f->attr('name', 'table');
+            $table = wire('modules')->get("MarkupAdminDataTable");
+            $table->setEncodeEntities(false);
+            $table->setSortable(true);
+            $table->setClass('adminactionsconfig');
+            $table->headerRow(array(
+                __('Title'),
+                __('Info'),
+                __('Roles'),
+                __('In Menu'),
+                __('Author')
+            ));
+
+            foreach($actionsList as $action => $info) {
+                if(!$data) {
+                    $allData[$actionType][$info['name']]['roles'] = array(wire('roles')->get('superuser')->id);
+                    $rolesValue = array(wire('roles')->get('superuser')->id);
+                }
+                else {
+                    $rolesValue = isset($data[$actionType][$info['name']]['roles']) ? $data[$actionType][$info['name']]['roles'] : null;
+                }
+                $rolesWrapper = new InputfieldWrapper();
+                $fr = wire('modules')->get("InputfieldAsmSelect");
+                $fr->attr('name', 'roles_'.$info['name']);
+                $fr->skipLabel = Inputfield::skipLabelHeader;
+                $fr->options = $rolesOptions;
+                $fr->addClass('rolesSelect');
+                $fr->setAsmSelectOption('sortable', false);
+                $fr->value = $rolesValue;
+                $rolesWrapper->add($fr);
+
+                $menuWrapper = new InputfieldWrapper();
+                $fm = wire('modules')->get("InputfieldCheckbox");
+                $fm->attr('name', 'menu_'.$info['name']);
+                $fm->skipLabel = Inputfield::skipLabelHeader;
+                $fm->label2 = ' ';
+                $fm->attr('checked', isset($data[$actionType][$info['name']]['menu']) && $data[$actionType][$info['name']]['menu'] == '1' ? 'checked' : '' );
+                $menuWrapper->add($fm);
+                $rowClass = !array_key_exists($action, $data['site']) && !array_key_exists($action, $data['core']) ? 'newAction' : '';
+                $row = array(
+                    '<strong>'.$this->getActionName($action).'</strong>',
+                    (isset($info['description']) ? $info['description'] : '') . (isset($info['notes']) ? '<br /><span class="notes">'.$info['notes'].'</span>' : ''),
+                    $rolesWrapper->render(),
+                    $menuWrapper->render(),
+                    isset($info['author']) ? '<span class="adminActionsAuthor">'.$info['author'].'<br />' . ($info['authorLinks'] ? $this->authorLinks($info['authorLinks']) : '') . '</span>' : ''
+
+                );
+                $table->row($row, array('class' => $rowClass));
+                $actionsCount++;
+
+                // prepare initial description, notes, and author values
+                $allData[$actionType][$info['name']]['description'] = $info['description'];
+                $allData[$actionType][$info['name']]['notes'] = $info['notes'];
+                $allData[$actionType][$info['name']]['author'] = $info['author'];
+                $allData[$actionType][$info['name']]['authorLinks'] = $info['authorLinks'];
+
             }
-            else {
-                $rolesValue = isset($data[$info['name']]['roles']) ? $data[$info['name']]['roles'] : null;
-            }
-            $rolesWrapper = new InputfieldWrapper();
-            $fr = wire('modules')->get("InputfieldAsmSelect");
-            $fr->attr('name', 'roles_'.$info['name']);
-            $fr->skipLabel = Inputfield::skipLabelHeader;
-            $fr->options = $rolesOptions;
-            $fr->addClass('rolesSelect');
-            $fr->setAsmSelectOption('sortable', false);
-            $fr->value = $rolesValue;
-            $rolesWrapper->add($fr);
+            $f->attr('value', $table->render());
+            $tab->add($f);
 
-            $menuWrapper = new InputfieldWrapper();
-            $fm = wire('modules')->get("InputfieldCheckbox");
-            $fm->attr('name', 'menu_'.$info['name']);
-            $fm->skipLabel = Inputfield::skipLabelHeader;
-            $fm->label2 = ' ';
-            $fm->attr('checked', isset($data[$info['name']]['menu']) && $data[$info['name']]['menu'] == '1' ? 'checked' : '' );
-            $menuWrapper->add($fm);
-            $row = array(
-                '<strong>'.$this->getActionName($action).'</strong>',
-                (isset($info['description']) ? $info['description'] : '') . (isset($info['notes']) ? '<br /><span class="notes">'.$info['notes'].'</span>' : ''),
-                $rolesWrapper->render(),
-                $menuWrapper->render(),
-                isset($info['author']) ? '<span class="adminActionsAuthor">'.$info['author'].'<br />' . ($info['authorLinks'] ? $this->authorLinks($info['authorLinks']) : '') . '</span>' : ''
-
-            );
-            $table->row($row);
-            $actionsCount++;
-
-            // prepare initial description, notes, and author values
-            $allData[$info['name']]['description'] = $info['description'];
-            $allData[$info['name']]['notes'] = $info['notes'];
-            $allData[$info['name']]['author'] = $info['author'];
-            $allData[$info['name']]['authorLinks'] = $info['authorLinks'];
-
+            $tabsWrapper->add($tab);
         }
-        $f->attr('value', $table->render());
-        $fieldset->add($f);
+        $fieldset->add($tabsWrapper);
+        $wrapper->add($fieldset);
 
         // save initial data when $data is empty on module install
         if(!$data) wire('modules')->saveModuleConfigData(wire('modules')->get("ProcessAdminActions"), $allData);
@@ -722,15 +783,18 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         // modify what is stored when settings saved so we can have the multidimensional array of data
         wire('modules')->addHookBefore('saveModuleConfigData', null, function($event) use ($allData) {
             if($this->input->get->name !== 'ProcessAdminActions') return;
+
+            $this->errors('clear');
+
             $allData['dbBackup'] = $this->input->post->dbBackup;
             foreach($this->input->post as $action => $info) {
                 if (strpos($action, 'roles_') !== false) {
                     $action = str_replace('roles_', '', $action);
-                    if(isset($allData[$action])) $allData[$action]['roles'] = $info;
+                    if(isset($allData[$this->actionTypes[$action]][$action])) $allData[$this->actionTypes[$action]][$action]['roles'] = $info;
                 }
                 if (strpos($action, 'menu_') !== false) {
                     $action = str_replace('menu_', '', $action);
-                    if(isset($allData[$action])) $allData[$action]['menu'] = $info;
+                    if(isset($allData[$this->actionTypes[$action]][$action])) $allData[$this->actionTypes[$action]][$action]['menu'] = $info;
                 }
             }
             $event->arguments(1, $allData);
