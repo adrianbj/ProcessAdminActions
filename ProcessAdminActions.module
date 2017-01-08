@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => 34,
+            'version' => 35,
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -344,7 +344,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             }
 
             // if more actions in folders than in config, display a warning
-            if((count($this->actions['site'] + $this->actions['core'])) > (count($this->data['site']) + count($this->data['core']))) $this->error("There are new actions available - please visit the module config settings to adjust approved roles and menu status.");
+            if((count($this->actions['site']) + count($this->actions['core'])) > (count($this->data['site']) + count($this->data['core']))) $this->error("There are new actions available - please visit the module config settings to adjust approved roles and menu status.");
 
             if(is_array($actionsList)) {
                 foreach($actionsList as $action => $info) {
@@ -669,7 +669,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         if(isset($this->data['core'])) {
             // if more actions in folders than in config, display a warning
-            if((count($this->actions['site'] + $this->actions['core'])) > (count($this->data['site']) + count($this->data['core']))) {
+            if((count($this->actions['site']) + count($this->actions['core'])) > (count($this->data['site']) + count($this->data['core']))) {
                 $this->error("There are new actions available (highlighted in orange) - please adjust approved roles and menu status, and click Submit to save.");
             }
         }

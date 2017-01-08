@@ -17,7 +17,7 @@ class FtpFilesToPage extends ProcessAdminActions {
         $dir = new \DirectoryIterator($this->config->paths->cache.'AdminActions/');
         foreach($dir as $item) {
             if(!$item->isDir() || $item->isDot()) continue;
-            $folderOptions[$item->getPathName()] = $item->getFilename();
+            $folderOptions[$item->getPathname()] = $item->getFilename();
         }
 
         return array(
@@ -67,8 +67,8 @@ class FtpFilesToPage extends ProcessAdminActions {
         $numFiles = 0;
         foreach($dir as $item) {
             if($item->isDir() || $item->isDot()) continue;
-            $destinationPage->$fieldName->add($item->getPathName());
-            if($deleteFolder) unlink($item->getPathName());
+            $destinationPage->$fieldName->add($item->getPathname());
+            if($deleteFolder) unlink($item->getPathname());
             $numFiles++;
         }
         $destinationPage->save($fieldName);
