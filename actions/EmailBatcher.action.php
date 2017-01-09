@@ -85,7 +85,7 @@ class EmailBatcher extends ProcessAdminActions {
                 'name' => 'body',
                 'label' => 'Body',
                 'description' => 'If you enter HTML, a text only version will be created automatically and both sent.',
-                'notes' => 'You can use any fields from the page template within your email body, eg: Dear {first_name} where "first_name" is a template field.',
+                'notes' => 'You can use any fields from the page template within your email body, eg: Dear {first_name} where "first_name" is a template field. You can also use {fromEmail} and {adminUrl}.',
                 'type' => 'CKEditor',
                 'required' => true
             )

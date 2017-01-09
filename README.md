@@ -32,6 +32,9 @@ Deletes fields that are not used by any templates.
 **Delete Unused Templates**
 Deletes templates that are not used by any pages.
 
+**Email Batcher**
+Lets you email multiple addresses at once.
+
 **Field Set Or Search And Replace**
 Set field values, or search and replace text in field values from a filtered selection of pages and fields.
 
