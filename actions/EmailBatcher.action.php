@@ -39,7 +39,7 @@ class EmailBatcher extends ProcessAdminActions {
                 'name' => 'pages',
                 'label' => 'Pages',
                 'description' => 'Select the pages that contain the recipients email address.',
-                'notes' => 'Only use one of "Pages", "User Roles", or "Test Address"',
+                'notes' => 'Only use one of "Pages" or "User Roles"',
                 'type' => 'selector',
                 'columnWidth' => 50,
                 'required' => true,
