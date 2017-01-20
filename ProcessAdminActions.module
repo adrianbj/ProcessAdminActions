@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => 39,
+            'version' => 40,
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -344,7 +344,8 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             }
 
             // if more actions in folders than in config, display a warning
-            if((count($this->actions['site']) + count($this->actions['core'])) > (count($this->data['site']) + count($this->data['core']))) $this->error("There are new actions available - please visit the module config settings to adjust approved roles and menu status.");
+            $siteActions = isset($this->actions['site']) ? $this->actions['site'] : array();
+            if((count($siteActions) + count($this->actions['core'])) > (count($siteActions) + count($this->data['core']))) $this->error("There are new actions available - please visit the module config settings to adjust approved roles and menu status.");
 
             if(is_array($actionsList)) {
                 foreach($actionsList as $action => $info) {
@@ -668,8 +669,9 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $this->getActions(__DIR__ . '/actions/');
 
         if(isset($this->data['core'])) {
+            $siteActions = isset($this->actions['site']) ? $this->actions['site'] : array();
             // if more actions in folders than in config, display a warning
-            if((count($this->actions['site']) + count($this->actions['core'])) > (count($this->data['site']) + count($this->data['core']))) {
+            if((count($siteActions) + count($this->actions['core'])) > (count($siteActions) + count($this->data['core']))) {
                 $this->error("There are new actions available (highlighted in orange) - please adjust approved roles and menu status, and click Submit to save.");
             }
         }
@@ -755,7 +757,8 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                 $fm->label2 = ' ';
                 $fm->attr('checked', isset($data[$actionType][$info['name']]['menu']) && $data[$actionType][$info['name']]['menu'] == '1' ? 'checked' : '' );
                 $menuWrapper->add($fm);
-                $rowClass = isset($data['core']) && !array_key_exists($action, $data['site']) && !array_key_exists($action, $data['core']) ? 'newAction' : '';
+                $siteActions = isset($data['site']) ? $data['site'] : array();
+                $rowClass = isset($data['core']) && !array_key_exists($action, $siteActions) && !array_key_exists($action, $data['core']) ? 'newAction' : '';
                 $row = array(
                     '<strong>'.$this->getActionName($action).'</strong>',
                     (isset($info['description']) ? $info['description'] : '') . (isset($info['notes']) ? '<br /><span class="notes">'.$info['notes'].'</span>' : ''),
