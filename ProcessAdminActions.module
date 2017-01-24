@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => 40,
+            'version' => 41,
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -313,6 +313,18 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $tabsWrapper->attr("id", "ActionsList");
         $tabsWrapper->attr("title", "Actions");
 
+        // get core actions in module folder
+        $this->getActions(__DIR__ . '/actions', false);
+        // get site actions from /site/templates/adminActions folder
+        if(file_exists($customActionsDir = wire('config')->paths->templates.'AdminActions/')) {
+            $this->getActions($customActionsDir, false);
+        }
+
+        if($this->newActionsAvailable()) $this->warning("There are new actions available - please visit the module config settings to adjust approved roles and menu status.");
+
+        if(isset($this->data['site'])) ksort($this->data['site']);
+        ksort($this->data['core']);
+
         $actionsCount=0;
         foreach($this->data as $actionType => $actionsList) {
 
@@ -333,19 +345,6 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                 __('Notes'),
                 __('Author')
             ));
-
-            ksort($this->data);
-
-            // get main actions in module folder
-            $this->getActions(__DIR__ . '/actions', false);
-            // get private actions from /site/templates/adminActions folder
-            if(file_exists($customActionsDir = wire('config')->paths->templates.'AdminActions/')) {
-                $this->getActions($customActionsDir, false);
-            }
-
-            // if more actions in folders than in config, display a warning
-            $siteActions = isset($this->actions['site']) ? $this->actions['site'] : array();
-            if((count($siteActions) + count($this->actions['core'])) > (count($siteActions) + count($this->data['core']))) $this->error("There are new actions available - please visit the module config settings to adjust approved roles and menu status.");
 
             if(is_array($actionsList)) {
                 foreach($actionsList as $action => $info) {
@@ -605,6 +604,16 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         }
     }
 
+    private function newActionsAvailable() {
+        $siteActionsDir = isset($this->actions['site']) ? $this->actions['site'] : array();
+        $siteActionsDB = isset($this->data['site']) ? $this->data['site'] : array();
+        if((count($siteActionsDir) + count($this->actions['core'])) > (count($siteActionsDB) + count($this->data['core']))) {
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
 
     private function backupDb() {
         if (!file_exists($this->adminActionsCacheDir)) wireMkdir($this->adminActionsCacheDir);
@@ -661,19 +670,15 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $rolesOptions = array();
         foreach(wire('roles')->find("name!=guest") as $role) $rolesOptions[$role->id] = $role->name;
 
-        // get private actions from /site/templates/adminActions folder
+        // get site actions from /site/templates/adminActions folder
         if(file_exists($customActionsDir = wire('config')->paths->templates.'AdminActions/')) {
             $this->getActions($customActionsDir);
         }
-        // get main actions in module folder
+        // get core actions in module folder
         $this->getActions(__DIR__ . '/actions/');
 
         if(isset($this->data['core'])) {
-            $siteActions = isset($this->actions['site']) ? $this->actions['site'] : array();
-            // if more actions in folders than in config, display a warning
-            if((count($siteActions) + count($this->actions['core'])) > (count($siteActions) + count($this->data['core']))) {
-                $this->error("There are new actions available (highlighted in orange) - please adjust approved roles and menu status, and click Submit to save.");
-            }
+            if($this->newActionsAvailable()) $this->warning("There are new actions available (highlighted in orange) - please adjust approved roles and menu status, and click Submit to save.");
         }
         else {
             $this->warning("Please check the \"Roles\" and \"In Menu\" settings for all the actions and adjust for your needs.");
@@ -708,7 +713,8 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $tabsWrapper->attr("id", "ActionsList");
         $tabsWrapper->attr("title", "Actions");
 
-        ksort($this->data);
+        if(isset($this->actions['site'])) ksort($this->actions['site']);
+        ksort($this->actions['core']);
 
         $actionsCount=0;
         foreach($this->actions as $actionType => $actionsList) {
