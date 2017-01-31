@@ -20,6 +20,9 @@ This action copies the content from one field to another field on all pages that
 **Copy Field Content To Other Page**
 Copies the content from a field on one page to the same field on another page.
 
+**Copy Repeater Items To Other Page**
+Add the items from a Repeater field on one page to the same field on another page.
+
 **Copy Table Field Rows To Other Page**
 Add the rows from a Table field on one page to the same field on another page.
 
