@@ -32,6 +32,13 @@ class CopyTableFieldRowsToOtherPage extends ProcessAdminActions {
                 'options' => $this->fields->find("type=FieldtypeTable")->getArray()
             ),
             array(
+                'name' => 'tableRowSelector',
+                'label' => 'Table Row Selector',
+                'description' => 'Optional selector to limit table rows. Leave empty to select all rows.',
+                'notes' => 'eg. price>50',
+                'type' => 'text'
+            ),
+            array(
                 'name' => 'sourcePage',
                 'label' => 'Source Page',
                 'description' => 'The source page for the contents of the table field',
@@ -92,7 +99,14 @@ class CopyTableFieldRowsToOtherPage extends ProcessAdminActions {
             $destinationPage->save($tableFieldName);
         }
 
-        foreach($sourcePage->$tableFieldName("limit=".$totalRows) as $row) {
+        if($options['tableRowSelector'] != '') {
+            $selectedRows = $sourcePage->$tableFieldName("limit=$totalRows, {$options['tableRowSelector']}");
+        }
+        else {
+            $selectedRows = $sourcePage->$tableFieldName("limit=".$totalRows);
+        }
+
+        foreach($selectedRows as $row) {
             $tableEntry = array();
             foreach($sourcePage->$tableFieldName->columns as $col) {
                 $tableEntry[$col['name']] = $row->{$col['name']};

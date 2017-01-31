@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => 42,
+            'version' => 44,
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -328,7 +328,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $actionsCount=0;
         foreach($this->data as $actionType => $actionsList) {
 
-            $tab = $this->wire(new InputfieldWrapper());
+            $tab = new InputfieldWrapper();
             $tab->attr('id', 'tab_'.$actionType.'_actions');
             $tab->attr('title', ucfirst($actionType));
             $tab->attr('class', 'WireTab');
@@ -719,7 +719,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $actionsCount=0;
         foreach($this->actions as $actionType => $actionsList) {
 
-            $tab = $this->wire(new InputfieldWrapper());
+            $tab = new InputfieldWrapper();
             $tab->attr('id', 'tab_'.$actionType.'_actions');
             $tab->attr('title', ucfirst($actionType));
             $tab->attr('class', 'WireTab');

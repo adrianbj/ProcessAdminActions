@@ -32,6 +32,13 @@ class CopyRepeaterItemsToOtherPage extends ProcessAdminActions {
                 'options' => $this->fields->find("type=FieldtypeRepeater")->getArray()
             ),
             array(
+                'name' => 'repeaterItemSelector',
+                'label' => 'Repeater Item Selector',
+                'description' => 'Optional selector to limit repeater items. Leave empty to select all items.',
+                'notes' => 'eg. price>50',
+                'type' => 'text'
+            ),
+            array(
                 'name' => 'sourcePage',
                 'label' => 'Source Page',
                 'description' => 'The source page for the contents of the repeater field',
@@ -78,7 +85,14 @@ class CopyRepeaterItemsToOtherPage extends ProcessAdminActions {
             $destinationPage->save($repeaterFieldName);
         }
 
-        foreach($sourcePage->$repeaterFieldName as $item) {
+        if($options['repeaterItemSelector'] != '') {
+            $repeaterItems = $sourcePage->$repeaterFieldName->find("{$options['repeaterItemSelector']}");
+        }
+        else {
+            $repeaterItems = $sourcePage->$repeaterFieldName;
+        }
+
+        foreach($repeaterItems as $item) {
             $repeaterItemClone = $destinationPage->$repeaterFieldName->getNew();
             $repeaterItemClone->save();
 
