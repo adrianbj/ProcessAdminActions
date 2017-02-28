@@ -414,8 +414,8 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         $urlParts = explode('/', trim($this->input->url,'/'));
         if($this->user->isSuperuser() && end($urlParts) === 'options') {
-            $this->config->scripts->add($this->config->urls->siteModules . 'ProcessAdminActions/ace-editor/ace.js');
-            $this->config->scripts->add($this->config->urls->siteModules . 'ProcessAdminActions/ace-setup.js');
+            $this->config->scripts->add($this->config->urls->ProcessAdminActions . '/ace-editor/ace.js');
+            $this->config->scripts->add($this->config->urls->ProcessAdminActions . '/ace-setup.js');
             $f = $this->modules->get("InputfieldMarkup");
             $f->name = 'actionCode';
             $f->label = 'Action Code';
