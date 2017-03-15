@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.4.5',
+            'version' => '0.4.6',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -200,7 +200,8 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         foreach($form->getAll() as $field) {
             if($field->hasClass('required')) $i++;
         }
-        if(count($this->wire('input')->get) === $i) {
+        $numGetParams = count($this->wire('input')->get);
+        if($numGetParams > 1 && $numGetParams === $i) {
             $urlFields = new WireInputData();
             foreach($this->wire('input')->get as $field => $value) {
                 // exclude fields that don't exist in the form, like the "action" url parameter
@@ -236,7 +237,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         }
 
         // backup database before executing action
-        if($this->data['dbBackup'] == 'automatic' || ($this->data['dbBackup'] == 'optional' && (bool)$form->get("dbBackup")->value === true)) {
+        if($this->data['dbBackup'] == 'automatic' || ($this->data['dbBackup'] == 'optional' && isset($form->get("dbBackup")->value) && (bool)$form->get("dbBackup")->value === true)) {
             $this->backupDb();
             $restoreLink = '<br /><div class="adminActionsWarning"><p>If you find a problem with the changes, you can <a href="./restore/">restore</a> the entire database.</p></div>';
         }
@@ -246,7 +247,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         // execute action and render output
         if($this->action->executeAction($options) && !$form->getErrors()) {
-            return $actionTitle . '<div class="adminActionsSuccess"><p>The '.$actionName.' action was completed successfully.</p><p>' . $this->action->successMessage . '</p></div>' . $restoreLink;
+            return $actionTitle . $this->action->output . '<div class="adminActionsSuccess"><p>The '.$actionName.' action was completed successfully.</p><p>' . $this->action->successMessage . '</p></div>' . $restoreLink;
         }
         else {
             $this->wire()->error('Sorry, the '.$actionName.' action could not be completed successfully.');
@@ -429,7 +430,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         if(method_exists($this->action,'defineOptions')) $form->add($this->action->defineOptions());
 
-        if($this->data['dbBackup'] == 'optional') {
+        if($this->data['dbBackup'] == 'optional' && !$this->action->noBackup) {
             $f = $this->wire('modules')->get("InputfieldCheckbox");
             $f->name = 'dbBackup';
             $f->label = __('Database Backup');
