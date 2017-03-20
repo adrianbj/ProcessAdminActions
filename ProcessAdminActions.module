@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.4.6',
+            'version' => '0.4.7',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -247,7 +247,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         // execute action and render output
         if($this->action->executeAction($options) && !$form->getErrors()) {
-            return $actionTitle . $this->action->output . '<div class="adminActionsSuccess"><p>The '.$actionName.' action was completed successfully.</p><p>' . $this->action->successMessage . '</p></div>' . $restoreLink;
+            return $actionTitle . $this->action->output . '<div class="adminActionsSuccess">' . ($this->action->successMessage == '' ? '<p>The '.$actionName.' action was completed successfully.</p>' : '<p>' . $this->action->successMessage . '</p>') . '</div>' . $restoreLink;
         }
         else {
             $this->wire()->error('Sorry, the '.$actionName.' action could not be completed successfully.');
