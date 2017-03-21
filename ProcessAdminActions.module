@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.4.8',
+            'version' => '0.4.9',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -73,7 +73,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $user = $data['user'];
         $wire = $data['wire'];
         // if in admin/backend, then require "admin-actions" permission
-        if($user->hasPermission('admin-actions-hide-menu') || (strpos($wire->input->url, $wire->config->urls->admin) === 0 && !$user->hasPermission('admin-actions'))) {
+        if(strpos($wire->input->url, $wire->config->urls->admin) === 0 && !$user->hasPermission('admin-actions')) {
             return false;
         }
         // else in frontend, so allow full access to call actions via the API
