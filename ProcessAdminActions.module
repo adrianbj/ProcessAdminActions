@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.5.0',
+            'version' => '0.5.1',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -140,7 +140,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             }
         }
 
-        $this->dbBackup = $this->action->dbBackup ? $this->action->dbBackup : $this->data['dbBackup'];
+        $this->dbBackup = isset($this->action->dbBackup) ? $this->action->dbBackup : $this->data['dbBackup'];
 
     }
 
