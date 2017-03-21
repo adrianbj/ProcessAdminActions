@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.4.9',
+            'version' => '0.5.0',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -93,6 +93,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
     protected $hasPermission = false;
     protected $adminActionsCacheDir;
     protected $dbBackupFilename;
+    protected $dbBackup;
     protected $noPermissionMessage = 'Sorry, you do not have permission to use this action.';
 
 
@@ -138,6 +139,8 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                 return $this->noPermissionMessage;
             }
         }
+
+        $this->dbBackup = $this->action->dbBackup ? $this->action->dbBackup : $this->data['dbBackup'];
 
     }
 
@@ -237,7 +240,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         }
 
         // backup database before executing action
-        if($this->data['dbBackup'] == 'automatic' || ($this->data['dbBackup'] == 'optional' && isset($form->get("dbBackup")->value) && (bool)$form->get("dbBackup")->value === true)) {
+        if($this->dbBackup == 'automatic' || ($this->dbBackup == 'optional' && isset($form->get("dbBackup")->value) && (bool)$form->get("dbBackup")->value === true)) {
             $this->backupDb();
             $restoreLink = '<br /><div class="adminActionsWarning"><p>If you find a problem with the changes, you can <a href="./restore/">restore</a> the entire database.</p></div>';
         }
@@ -415,7 +418,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $form->add($f);
 
         $urlParts = explode('/', trim($this->wire('input')->url,'/'));
-        if($this->wire('user')->isSuperuser() && end($urlParts) === 'options') {
+        if($this->data['showActionCode'] && $this->wire('user')->isSuperuser() && end($urlParts) === 'options') {
             $this->wire('config')->scripts->add($this->wire('config')->urls->ProcessAdminActions . 'ace-editor/ace.js');
             $this->wire('config')->scripts->add($this->wire('config')->urls->ProcessAdminActions . 'ace-setup.js');
             $f = $this->wire('modules')->get("InputfieldMarkup");
@@ -430,7 +433,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         if(method_exists($this->action,'defineOptions')) $form->add($this->action->defineOptions());
 
-        if($this->data['dbBackup'] == 'optional' && !$this->action->noBackup) {
+        if($this->dbBackup == 'optional') {
             $f = $this->wire('modules')->get("InputfieldCheckbox");
             $f->name = 'dbBackup';
             $f->label = __('Database Backup');
@@ -690,18 +693,32 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             $allData['dbBackup'] = 'automatic';
         }
 
+        if(!array_key_exists('showActionCode', $data)) {
+            $allData['showActionCode'] = null;
+        }
+
         $wrapper = new InputfieldWrapper();
 
         $f = $this->wire('modules')->get("InputfieldRadios");
         $f->name = 'dbBackup';
         $f->label = __('Database Backup');
         $f->description = __('Do you want to backup the database before each action is executed?');
-        $f->notes = __('"Optional" adds a checbox to the options form before the user executes an action.');
+        $f->notes = __('You can override this setting in your custom actions by setting: protected $dbBackup = "automatic", "optional", or "disabled".');
         $f->required = true;
         $f->addOption('automatic', 'Automatic');
         $f->addOption('optional', 'Optional');
         $f->addOption('disabled', 'Disabled');
-        $f->attr('value', isset($data['dbBackup']) ? $data['dbBackup'] : $allData['dbBackup']);
+        $f->columnWidth = 50;
+        $f->attr('value', array_key_exists('dbBackup', $data) ? $data['dbBackup'] : $allData['dbBackup']);
+        $wrapper->add($f);
+
+        $f = $this->wire('modules')->get("InputfieldCheckbox");
+        $f->name = 'showActionCode';
+        $f->label = __('Show Action Code');
+        $f->description = __('Show the code for the executeAction() function for superusers.');
+        $f->columnWidth = 50;
+        $showActionCode = array_key_exists('showActionCode', $data) ? $data['showActionCode'] : $allData['showActionCode'];
+        $f->attr('checked', $showActionCode ? 'checked' : '' );
         $wrapper->add($f);
 
         $fieldset = $this->wire('modules')->get("InputfieldFieldset");
@@ -804,6 +821,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             $this->wire()->warnings('clear');
 
             $allData['dbBackup'] = $this->wire('input')->post->dbBackup;
+            $allData['showActionCode'] = $this->wire('input')->post->showActionCode;
             foreach($this->wire('input')->post as $action => $info) {
                 if (strpos($action, 'roles_') !== false) {
                     $action = str_replace('roles_', '', $action);
