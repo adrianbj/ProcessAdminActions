@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.5.1',
+            'version' => '0.5.2',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -418,7 +418,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $form->add($f);
 
         $urlParts = explode('/', trim($this->wire('input')->url,'/'));
-        if($this->data['showActionCode'] && $this->wire('user')->isSuperuser() && end($urlParts) === 'options') {
+        if(isset($this->data['showActionCode']) && $this->data['showActionCode'] && $this->wire('user')->isSuperuser() && end($urlParts) === 'options') {
             $this->wire('config')->scripts->add($this->wire('config')->urls->ProcessAdminActions . 'ace-editor/ace.js');
             $this->wire('config')->scripts->add($this->wire('config')->urls->ProcessAdminActions . 'ace-setup.js');
             $f = $this->wire('modules')->get("InputfieldMarkup");
@@ -444,7 +444,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         $f = $this->wire('modules')->get("InputfieldSubmit");
         $f->name = 'submit';
-        $f->value = 'Execute Action';
+        $f->value = __('Execute Action');
         $form->add($f);
 
         //preset any fields provided as URL parameters
