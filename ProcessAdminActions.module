@@ -444,7 +444,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         $f = $this->wire('modules')->get("InputfieldSubmit");
         $f->name = 'submit';
-        $f->value = 'Execute Action';
+        $f->value = __('Execute Action');
         $form->add($f);
 
         //preset any fields provided as URL parameters
