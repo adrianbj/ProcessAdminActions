@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.5.2',
+            'version' => '0.5.3',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -333,6 +333,8 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $actionsCount=0;
         foreach($this->data as $actionType => $actionsList) {
 
+            if(!is_array($actionsList)) continue;
+
             $tab = new InputfieldWrapper();
             $tab->attr('id', 'tab_'.$actionType.'_actions');
             $tab->attr('title', ucfirst($actionType));
@@ -351,21 +353,20 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                 __('Author')
             ));
 
-            if(is_array($actionsList)) {
-                foreach($actionsList as $action => $info) {
-                    if($this->getActionPath($action) && isset($info['roles']) && count(array_intersect($info['roles'], $this->wire('user')->roles->each("id"))) !== 0) {
-                        $row = array(
-                            '<p><strong><a href="./options?action='.$action.'">'.$this->getActionName($action).'</a></strong></p>',
-                            isset($info['description']) ? $info['description'] : '',
-                            isset($info['notes']) ? '<span class="notes">'.$info['notes'].'</span>' : '',
-                            isset($info['author']) ? '<span class="adminActionsAuthor">'.$info['author'].'<br />' . ($info['authorLinks'] ? $this->authorLinks($info['authorLinks']) : '') . '</span>' : '',
+            foreach($actionsList as $action => $info) {
+                if($this->getActionPath($action) && isset($info['roles']) && count(array_intersect($info['roles'], $this->wire('user')->roles->each("id"))) !== 0) {
+                    $row = array(
+                        '<p><strong><a href="./options?action='.$action.'">'.$this->getActionName($action).'</a></strong></p>',
+                        isset($info['description']) ? $info['description'] : '',
+                        isset($info['notes']) ? '<span class="notes">'.$info['notes'].'</span>' : '',
+                        isset($info['author']) ? '<span class="adminActionsAuthor">'.$info['author'].'<br />' . ($info['authorLinks'] ? $this->authorLinks($info['authorLinks']) : '') . '</span>' : '',
 
-                        );
-                        $table->row($row);
-                        $actionsCount++;
-                    }
+                    );
+                    $table->row($row);
+                    $actionsCount++;
                 }
             }
+
             $f->attr('value', $table->render());
 
             $tab->add($f);
@@ -737,6 +738,8 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         $actionsCount=0;
         foreach($this->actions as $actionType => $actionsList) {
+
+            if(!is_array($actionsList)) continue;
 
             $tab = new InputfieldWrapper();
             $tab->attr('id', 'tab_'.$actionType.'_actions');
