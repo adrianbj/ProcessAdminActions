@@ -4,7 +4,7 @@
 class FieldSetOrSearchAndReplace extends ProcessAdminActions {
 
     protected $description = 'Set field values, or search and replace text in field values from a filtered selection of pages and fields.';
-    protected $notes = 'This can be very destructive!';
+    protected $notes = 'This can be very destructive - please be careful!';
     protected $author = 'Adrian Jones';
     protected $authorLinks = array(
         'pwforum' => '985-adrian',
@@ -79,11 +79,25 @@ class FieldSetOrSearchAndReplace extends ProcessAdminActions {
                 $fieldName = $this->fields->get((int)$field)->name;
                 if(!$p->template->hasField($fieldName)) continue;
                 if($options['search'] != '') {
-                    if($options['search'][0] === '/' && $options['search'][strlen($options['search'])-1] === '/') {
-                        $p->$fieldName = preg_replace($options['search'], $options['setOrReplace'], $p->$fieldName);
+                    // an array indicates multi-value fields, like Profields Textareas
+                    // TODO - need to expand this for other fields
+                    if(is_array($p->$fieldName->data)) {
+                        foreach($p->$fieldName->data as $k => $v) {
+                            if($options['search'][0] === '/' && $options['search'][strlen($options['search'])-1] === '/') {
+                                $p->$fieldName->$k = preg_replace($options['search'], $options['setOrReplace'], $p->$fieldName->$k);
+                            }
+                            else {
+                                $p->$fieldName->$k = str_replace($options['search'], $options['setOrReplace'], $p->$fieldName->$k);
+                            }
+                        }
                     }
                     else {
-                        $p->$fieldName = str_replace($options['search'], $options['setOrReplace'], $p->$fieldName);
+                        if($options['search'][0] === '/' && $options['search'][strlen($options['search'])-1] === '/') {
+                            $p->$fieldName = preg_replace($options['search'], $options['setOrReplace'], $p->$fieldName);
+                        }
+                        else {
+                            $p->$fieldName = str_replace($options['search'], $options['setOrReplace'], $p->$fieldName);
+                        }
                     }
                 }
                 else {
