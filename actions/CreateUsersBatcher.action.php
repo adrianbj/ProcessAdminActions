@@ -15,6 +15,8 @@ class CreateUsersBatcher extends ProcessAdminActions {
     protected function defineOptions() {
 
         $rolesOptions = array();
+        $this->userFields = $this->templates->get("user")->fields->find("name!=roles");
+
         foreach($this->roles as $role) $rolesOptions[$role->id] = $role->name;
 
         return array(
@@ -30,8 +32,8 @@ class CreateUsersBatcher extends ProcessAdminActions {
             array(
                 'name' => 'newUsers',
                 'label' => 'New Users',
-                'description' => 'Each line must contain: username, useremail@gmail.com',
-                'notes' => 'If you want to set other field values as well, include them in this order: username, '.$this->templates->get("user")->fields->find("name!=roles")->implode(", ", "name"),
+                'description' => 'Each line must contain: name, useremail@gmail.com',
+                'notes' => 'Use CSV or JSON. If you want to set other field values as well, include them in the CSV in this order or as the JSON key: name, '.$this->userFields->implode(", ", "name"),
                 'type' => 'textarea',
                 'required' => true
             )
@@ -47,9 +49,37 @@ class CreateUsersBatcher extends ProcessAdminActions {
             $this->modules->get("EmailNewUser");
             $emailNewUserSettings = $this->modules->getModuleConfigData('EmailNewUser');
         }
-        $newUsersArr = $this->explodeAndTrim($options['newUsers'], "\n");
-        foreach($newUsersArr as $newUser) {
-            $newUserArr = $this->explodeAndTrim($newUser, ',');
+
+        // if there is no new line at the end, add one to fix issue if last item in CSV row has enclosures but others don't
+        $newUsers = $options['newUsers'];
+
+        if($this->isJSON($newUsers)) {
+            $newUsersArray = json_decode($newUsers, true);
+            $fieldNames = array_values($this->userFields->explode('name'));
+            array_unshift($fieldNames, "name");
+        }
+        else {
+
+            if(substr($newUsers, -1) != "\r" && substr($newUsers, -1) != "\n") $newUsers .= PHP_EOL;
+
+            require_once __DIR__ . '/libraries/parsecsv.lib.php';
+
+            $userPagesArray = new parseCSV();
+            $userPagesArray->encoding('UTF-16', 'UTF-8');
+            $userPagesArray->heading = false;
+            $userPagesArray->delimiter = ',';
+            $userPagesArray->enclosure = '"';
+            $userPagesArray->parse($newUsers);
+
+            $newUsersArray = $userPagesArray->data;
+        }
+
+        //iterate through rows of users
+        foreach($newUsersArray as $newUserArr) {
+
+            // if $fieldNames array isset we are dealing with JSON, so order to match order of fields in the user template
+            if(isset($fieldNames)) $newUserArr = array_values(array_merge(array_flip($fieldNames), $newUserArr));
+
             $_newUser = new User();
             $_newUser->name = $newUserArr[0];
             if(count($newUserArr) == 2) {
@@ -70,7 +100,15 @@ class CreateUsersBatcher extends ProcessAdminActions {
                         $this->failureMessage = $passwordFailureMessage;
                         return false;
                     }
-                    $_newUser->{$f->name} = isset($newUserArr[$i]) ? $newUserArr[$i] : null;
+                    if($this->wire('fields')->get($f->name)->type instanceof FieldtypeFile) {
+                        // need to save before adding files/images
+                        $_newUser->save();
+                        if(isset($newUserArr[$i])) $_newUser->{$f->name}->add($newUserArr[$i]);
+                    }
+                    else {
+                        $_newUser->{$f->name} = isset($newUserArr[$i]) ? $newUserArr[$i] : null;
+                    }
+
                     $i++;
                 }
             }
@@ -81,14 +119,14 @@ class CreateUsersBatcher extends ProcessAdminActions {
             $_newUser->save();
         }
 
-        $this->successMessage = count($newUsersArr) . ' new users were successfully created.';
+        $this->successMessage = count($newUsersArray) . ' new users were successfully created.';
         return true;
 
     }
 
-    private function explodeAndTrim($str, $delimiter) {
-        $arr = explode($delimiter, trim($str));
-        return array_filter($arr, 'trim'); // remove any extra \r characters left behind
+    private function isJSON($string){
+        call_user_func_array('json_decode',func_get_args());
+        return (json_last_error()===JSON_ERROR_NONE);
     }
 
 }
