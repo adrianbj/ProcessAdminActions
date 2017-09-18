@@ -15,16 +15,16 @@ class CreateUsersBatcher extends ProcessAdminActions {
     protected function defineOptions() {
 
         $rolesOptions = array();
-        $this->userFields = $this->templates->get("user")->fields->find("name!=roles");
-
         foreach($this->roles as $role) $rolesOptions[$role->id] = $role->name;
+
+        $this->userFields = $this->templates->get("user")->fields->find("name!=roles");
 
         return array(
             array(
                 'name' => 'roles',
                 'label' => 'Roles',
                 'description' => 'Select the roles that you want to applied to all new users.',
-                'notes' => 'At least one of these roles must have the "profile-edit" permission so that the user can change their password the first time they log in.',
+                'notes' => ($this->wire('modules')->isInstalled("EmailNewUser") && $this->wire('modules')->isInstalled("PasswordForceChange") ? 'You have the Email New User and Password Force Change modules installed. If you are automatically generating passwords, at least one of these roles must have the "profile-edit" permission so that the user can change their password the first time they log in.' : ''),
                 'type' => 'AsmSelect',
                 'options' => $rolesOptions,
                 'required' => true
