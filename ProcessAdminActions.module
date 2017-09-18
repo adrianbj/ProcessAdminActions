@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.5.5',
+            'version' => '0.5.6',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -581,12 +581,15 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             $i++;
         }
         while($braceDepth > 0 && ($i < $z)) {
-            if(is_array($tokens[$i]))
+            if(is_array($tokens[$i])) {
                 $accumulator[] = $tokens[$i][1];
+                if($tokens[$i][1] == '{') $braceDepth++;
+                elseif($tokens[$i][1] == '}') $braceDepth--;
+            }
             else {
                 $accumulator[] = $tokens[$i];
                 if($tokens[$i] == '{') $braceDepth++;
-                else if($tokens[$i] == '}') $braceDepth--;
+                elseif($tokens[$i] == '}') $braceDepth--;
             }
             $i++;
         }
