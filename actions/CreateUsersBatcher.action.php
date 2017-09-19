@@ -74,7 +74,31 @@ class CreateUsersBatcher extends ProcessAdminActions {
             $newUsersArray = $userPagesArray->data;
         }
 
-        //iterate through rows of users
+        //iterate through rows of users checking for duplicates / existing users
+        $userNames = array();
+        $existingUserNames = array();
+        foreach($newUsersArray as $newUserArr) {
+            $userNames[] = $newUserArr[0];
+            if($this->wire('users')->get($newUserArr[0])->id) $existingUserNames[] = $newUserArr[0];
+        }
+
+        if(count($existingUserNames) > 0) {
+            $this->failureMessage = 'There are existing usernames ('.implode(', ', $existingUserNames).') in the CSV. Please correct and try again.';
+            return false;
+        }
+
+        $uniqueUserNames = array_unique($userNames);
+        $counts = array_count_values($uniqueUserNames);
+        $duplicateUserNames = array_filter($userNames, function($o) use (&$counts) {
+            return empty($counts[$o]) || !$counts[$o]--;
+        });
+
+        if(count($userNames) !== count($uniqueUserNames)) {
+            $this->failureMessage = 'There are duplicate usernames ('.implode(', ', $duplicateUserNames).') in the CSV. Please correct and try again.';
+            return false;
+        }
+
+        // if we get past duplicate / existing user checks loop again to add users
         foreach($newUsersArray as $newUserArr) {
 
             // if $fieldNames array isset we are dealing with JSON, so order to match order of fields in the user template

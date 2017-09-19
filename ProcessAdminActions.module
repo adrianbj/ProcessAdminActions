@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.5.7',
+            'version' => '0.5.8',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -186,6 +186,8 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
      *
      */
     public function ___executeExecute() {
+
+        set_time_limit(0);
 
         if(!$this->hasPermission) return $this->noPermissionMessage;
 
