@@ -105,13 +105,13 @@ class CreateUsersBatcher extends ProcessAdminActions {
             if(isset($fieldNames)) $newUserArr = array_values(array_merge(array_flip($fieldNames), $newUserArr));
 
             $_newUser = new User();
-            $_newUser->name = $newUserArr[0];
+            $_newUser->name = $this->wire('sanitizer')->pageName($newUserArr[0]);
             if(count($newUserArr) == 2) {
                 if(!$this->wire('modules')->isInstalled("EmailNewUser") || !$emailNewUserSettings['generatePassword']) {
                     $this->failureMessage = $passwordFailureMessage;
                     return false;
                 }
-                $_newUser->email = $newUserArr[1];
+                $_newUser->email = $this->wire('sanitizer')->email($newUserArr[1]);
                 $_newUser->pass = ''; // need to set to blank to trigger EmailNewUser to generate automatic password
                 $_newUser->sendEmail = true;
                 $_newUser->force_passwd_change = 1;
