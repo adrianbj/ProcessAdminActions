@@ -19,7 +19,7 @@ class CopyFieldContentToOtherPage extends ProcessAdminActions {
                 'description' => 'Choose the field that you want to copy',
                 'type' => 'select',
                 'required' => true,
-                'options' => $this->fields->find("sort=name")->getArray()
+                'options' => $this->wire('fields')->find("sort=name")->getArray()
             ),
             array(
                 'name' => 'sourcePage',
@@ -41,9 +41,9 @@ class CopyFieldContentToOtherPage extends ProcessAdminActions {
 
     protected function executeAction($options) {
 
-        $fieldName = $this->fields->get((int)$options['field'])->name;
-        $sourcePage = $this->pages->get((int)$options['sourcePage']);
-        $destinationPage = $this->pages->get((int)$options['destinationPage']);
+        $fieldName = $this->wire('fields')->get((int)$options['field'])->name;
+        $sourcePage = $this->wire('pages')->get((int)$options['sourcePage']);
+        $destinationPage = $this->wire('pages')->get((int)$options['destinationPage']);
 
         $sourcePage->of(false);
         $destinationPage->of(false);

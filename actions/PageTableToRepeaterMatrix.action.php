@@ -29,7 +29,7 @@ class PageTableToRepeaterMatrix extends ProcessAdminActions {
                 'description' => 'Choose the PageTable field to be converted to a Repeater or RepeaterMatrix field.',
                 'type' => 'select',
                 'required' => true,
-                'options' => $this->fields->find("type=FieldtypePageTable")->getArray()
+                'options' => $this->wire('fields')->find("type=FieldtypePageTable")->getArray()
             ),
             array(
                 'name' => 'forceRepeaterMatrix',
@@ -79,29 +79,29 @@ class PageTableToRepeaterMatrix extends ProcessAdminActions {
 
     protected function executeAction($options) {
 
-        $fields = $this->fields;
-        $pages = $this->pages;
-        $modules = $this->modules;
-        $templates = $this->templates;
-        $fieldgroups = $this->fieldgroups;
-        $languages = $this->languages;
+        $fields = $this->wire('fields');
+        $pages = $this->wire('pages');
+        $modules = $this->wire('modules');
+        $templates = $this->wire('templates');
+        $fieldgroups = $this->wire('fieldgroups');
+        $languages = $this->wire('languages');
 
         // the Page Table field to be converted to a Repeater field
         $pageTableField = $fields->get((int)$options['pageTableField']);
         $pageTableFieldName = $pageTableFieldOriginalName = $pageTableField->name;
 
         // force Repeater Matrix even if there is only only template in the Page Table field that is being converted
-        $forceRepeaterMatrix = $this->sanitizer->bool($options['forceRepeaterMatrix']);
+        $forceRepeaterMatrix = $this->wire('sanitizer')->bool($options['forceRepeaterMatrix']);
 
         // delete the template(s) used within the old PageTable field if they are not used by any other pages?
-        $deleteOldTemplates = $this->sanitizer->bool($options['deleteOldTemplates']);
+        $deleteOldTemplates = $this->wire('sanitizer')->bool($options['deleteOldTemplates']);
 
         // empty trash before starting to ensure no trashed pages are using templates we are trying to delete
-        $emptyTrash = $this->sanitizer->bool($options['emptyTrash']);
+        $emptyTrash = $this->wire('sanitizer')->bool($options['emptyTrash']);
 
 
         if(!$pageTableField) {
-            $this->error('Sorry, the ' . $pageTableFieldName . ' Page Table field does not exist');
+            $this->wire()->error('Sorry, the ' . $pageTableFieldName . ' Page Table field does not exist');
             return false;
         }
         else {
@@ -113,7 +113,7 @@ class PageTableToRepeaterMatrix extends ProcessAdminActions {
                     $repeaterType = 'FieldtypeRepeaterMatrix';
                 }
                 else {
-                    $this->error('Sorry, the Repeater Matrix field type is not available.');
+                    $this->wire()->error('Sorry, the Repeater Matrix field type is not available.');
                     return false;
                 }
             }

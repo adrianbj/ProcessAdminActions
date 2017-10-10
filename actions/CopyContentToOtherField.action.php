@@ -19,7 +19,7 @@ class CopyContentToOtherField extends ProcessAdminActions {
                 'description' => 'Choose the template of the pages to copy the field',
                 'type' => 'select',
                 'required' => true,
-                'options' => $this->templates->find("sort=name, flags!=".Template::flagSystem)->getArray()
+                'options' => $this->wire('templates')->find("sort=name, flags!=".Template::flagSystem)->getArray()
             ),
             array(
                 'name' => 'sourceField',
@@ -27,7 +27,7 @@ class CopyContentToOtherField extends ProcessAdminActions {
                 'description' => 'Choose the source field',
                 'type' => 'select',
                 'required' => true,
-                'options' => $this->fields->find("sort=name")->getArray()
+                'options' => $this->wire('fields')->find("sort=name")->getArray()
             ),
             array(
                 'name' => 'destinationField',
@@ -35,7 +35,7 @@ class CopyContentToOtherField extends ProcessAdminActions {
                 'description' => 'Choose the destination field',
                 'type' => 'select',
                 'required' => true,
-                'options' => $this->fields->find("sort=name")->getArray()
+                'options' => $this->wire('fields')->find("sort=name")->getArray()
             )
         );
     }
@@ -43,11 +43,11 @@ class CopyContentToOtherField extends ProcessAdminActions {
 
     protected function executeAction($options) {
 
-        $sourceFieldName = $this->fields->get((int)$options['sourceField'])->name;
-        $destinationFieldName = $this->fields->get((int)$options['destinationField'])->name;
-        $templateName = $this->templates->get((int)$options['template'])->name;
+        $sourceFieldName = $this->wire('fields')->get((int)$options['sourceField'])->name;
+        $destinationFieldName = $this->wire('fields')->get((int)$options['destinationField'])->name;
+        $templateName = $this->wire('templates')->get((int)$options['template'])->name;
 
-        foreach($this->pages->find("template=".$templateName) as $p) {
+        foreach($this->wire('pages')->find("template=".$templateName) as $p) {
             $p->of(false);
             $p->$destinationFieldName = $p->$sourceFieldName;
             $p->save($destinationFieldName);

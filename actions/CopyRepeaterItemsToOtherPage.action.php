@@ -13,7 +13,7 @@ class CopyRepeaterItemsToOtherPage extends ProcessAdminActions {
 
     protected function checkRequirements() {
         if(!$this->wire('modules')->isInstalled("FieldtypeRepeater")) {
-            $this->error('The Repeater field type is not currently installed.');
+            $this->wire()->error('The Repeater field type is not currently installed.');
             return false;
         }
         else {
@@ -29,7 +29,7 @@ class CopyRepeaterItemsToOtherPage extends ProcessAdminActions {
                 'description' => 'Choose the Repeater field that you want to copy',
                 'type' => 'select',
                 'required' => true,
-                'options' => $this->fields->find("type=FieldtypeRepeater")->getArray()
+                'options' => $this->wire('fields')->find("type=FieldtypeRepeater")->getArray()
             ),
             array(
                 'name' => 'repeaterItemSelector',
@@ -71,11 +71,11 @@ class CopyRepeaterItemsToOtherPage extends ProcessAdminActions {
 
     protected function executeAction($options) {
 
-        $repeaterField = $this->fields->get((int)$options['repeaterField']);
+        $repeaterField = $this->wire('fields')->get((int)$options['repeaterField']);
         $repeaterFieldName = $repeaterField->name;
         $repeaterFieldType = $repeaterField->type;
-        $sourcePage = $this->pages->get((int)$options['sourcePage']);
-        $destinationPage = $this->pages->get((int)$options['destinationPage']);
+        $sourcePage = $this->wire('pages')->get((int)$options['sourcePage']);
+        $destinationPage = $this->wire('pages')->get((int)$options['destinationPage']);
 
         $sourcePage->of(false);
         $destinationPage->of(false);
@@ -96,8 +96,8 @@ class CopyRepeaterItemsToOtherPage extends ProcessAdminActions {
             $repeaterItemClone = $destinationPage->$repeaterFieldName->getNew();
             $repeaterItemClone->save();
 
-            foreach($this->fields->get($repeaterFieldName)->repeaterFields as $subfield) {
-                $subFieldName = $this->fields->get($subfield)->name;
+            foreach($this->wire('fields')->get($repeaterFieldName)->repeaterFields as $subfield) {
+                $subFieldName = $this->wire('fields')->get($subfield)->name;
                 $repeaterItemClone->$subFieldName = $item->$subFieldName;
             }
 

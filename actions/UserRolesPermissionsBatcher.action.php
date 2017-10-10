@@ -14,13 +14,13 @@ class UserRolesPermissionsBatcher extends ProcessAdminActions {
     protected function defineOptions() {
 
         $userOptions = array();
-        foreach($this->users->find("sort=name") as $u) $usersOptions[$u->id] = $u->name;
+        foreach($this->wire('users')->find("sort=name") as $u) $usersOptions[$u->id] = $u->name;
 
         $rolesOptions = array();
-        foreach($this->roles->find("sort=name") as $role) $rolesOptions[$role->id] = $role->name;
+        foreach($this->wire('roles')->find("sort=name") as $role) $rolesOptions[$role->id] = $role->name;
 
         $permissionsOptions = array();
-        foreach($this->permissions->find("sort=name") as $permission) $permissionsOptions[$permission->id] = $permission->name;
+        foreach($this->wire('permissions')->find("sort=name") as $permission) $permissionsOptions[$permission->id] = $permission->name;
 
         return array(
             array(
@@ -72,7 +72,7 @@ class UserRolesPermissionsBatcher extends ProcessAdminActions {
     protected function executeAction($options) {
 
         foreach($options['users'] as $user_id) {
-            $u = $this->users->get((int)$user_id);
+            $u = $this->wire('users')->get((int)$user_id);
             $u->of(false);
             foreach($options['roles'] as $role_id) {
                 if($options['addOrRemove'] == "add") {
@@ -87,7 +87,7 @@ class UserRolesPermissionsBatcher extends ProcessAdminActions {
         }
 
         foreach($options['roles'] as $role_id) {
-            $role = $this->roles->get((int)$role_id);
+            $role = $this->wire('roles')->get((int)$role_id);
             $role->of(false);
             foreach($options['permissions'] as $permission) {
                 if($options['addOrRemove'] == "add") {

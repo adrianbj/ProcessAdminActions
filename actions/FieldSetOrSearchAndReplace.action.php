@@ -15,7 +15,7 @@ class FieldSetOrSearchAndReplace extends ProcessAdminActions {
     protected function defineOptions() {
 
         $fieldOptions = array();
-        foreach($this->fields as $field) {
+        foreach($this->wire('fields') as $field) {
             if (!$field->type instanceof FieldtypeText) continue;
             if(count($field->getFieldgroups()) !== 0) $fieldOptions[$field->id] = $field->label ? $field->name . ' (' . $field->label . ')' : $field->name;
         }
@@ -60,8 +60,8 @@ class FieldSetOrSearchAndReplace extends ProcessAdminActions {
     protected function executeAction($options) {
 
         $count = 0;
-        $pageSelector = $options['selector'] ?: "has_parent!=".$this->config->adminRootPageID.",id!=".$this->config->adminRootPageID."|".$this->config->trashPageID.",status<".Page::statusTrash.",include=all";
-        foreach($this->pages->find($pageSelector) as $p) {
+        $pageSelector = $options['selector'] ?: "has_parent!=".$this->wire('config')->adminRootPageID.",id!=".$this->wire('config')->adminRootPageID."|".$this->wire('config')->trashPageID.",status<".Page::statusTrash.",include=all";
+        foreach($this->wire('pages')->find($pageSelector) as $p) {
             $p->of(false);
 
             if($options['fields']) {
@@ -69,14 +69,14 @@ class FieldSetOrSearchAndReplace extends ProcessAdminActions {
             }
             else {
                 $fieldOptions = array();
-                foreach($this->fields as $field) {
+                foreach($this->wire('fields') as $field) {
                     if (!$field->type instanceof FieldtypeText) continue;
                     if($p->template->hasField($field)) $fieldOptions[] = $field->id;
                 }
             }
 
             foreach($fieldOptions as $field) {
-                $fieldName = $this->fields->get((int)$field)->name;
+                $fieldName = $this->wire('fields')->get((int)$field)->name;
                 if(!$p->template->hasField($fieldName)) continue;
                 if($options['search'] != '') {
                     // an array indicates multi-value fields, like Profields Textareas

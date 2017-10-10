@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.5.9',
+            'version' => '0.6.0',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -103,7 +103,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
      */
     static public function getDefaultData() {
             return array(
-
+                "dbBackup" => "automatic"
             );
     }
 
@@ -627,7 +627,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
     }
 
     private function backupDb() {
-        if (!file_exists($this->adminActionsCacheDir)) wireMkdir($this->adminActionsCacheDir);
+        if(!file_exists($this->adminActionsCacheDir)) wireMkdir($this->adminActionsCacheDir);
 
         $backup = new WireDatabaseBackup($this->adminActionsCacheDir);
         $backup->setDatabase($this->wire('database'));

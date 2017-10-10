@@ -33,7 +33,7 @@ class PageActiveLanguagesBatcher extends ProcessAdminActions {
         );
 
         $languageStatus = array();
-        foreach($this->languages->find("name!=default") as $language) {
+        foreach($this->wire('languages')->find("name!=default") as $language) {
             $languageStatus[] = array(
                 'name' => 'language'.$language,
                 'label' => $language->title,
@@ -65,8 +65,8 @@ class PageActiveLanguagesBatcher extends ProcessAdminActions {
 
     protected function executeAction($options) {
         $count = 0;
-        foreach($this->pages->find($options['selector']) as $p) {
-            foreach($this->languages->find("name!=default") as $language) {
+        foreach($this->wire('pages')->find($options['selector']) as $p) {
+            foreach($this->wire('languages')->find("name!=default") as $language) {
                 $newLanguageStatus = $options['language'.$language->id];
                 if($newLanguageStatus !== 'nochange') $p->set("status".$language->id, $options['language'.$language->id]);
             }

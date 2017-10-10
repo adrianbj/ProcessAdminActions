@@ -69,7 +69,7 @@ class PageManipulator extends ProcessAdminActions {
                 'name' => 'changeTemplate',
                 'label' => 'Change Template',
                 'type' => 'select',
-                'options' => $this->templates->find("sort=name, flags!=".Template::flagSystem)->getArray()
+                'options' => $this->wire('templates')->find("sort=name, flags!=".Template::flagSystem)->getArray()
             )
         );
     }
@@ -78,12 +78,12 @@ class PageManipulator extends ProcessAdminActions {
     protected function executeAction($options) {
 
         $count = 0;
-        foreach($this->pages->find($options['selector']) as $p) {
+        foreach($this->wire('pages')->find($options['selector']) as $p) {
             $p->of(false);
 
             if($options['remove'] === 'trash') $p->trash();
             if($options['remove'] === 'delete') $p->delete();
-            if($options['remove'] === 'deleteIncludeChildren') $this->pages->delete($p, true);
+            if($options['remove'] === 'deleteIncludeChildren') $this->wire('pages')->delete($p, true);
 
             if($options['hidden'] === 'hide') $p->addStatus(Page::statusHidden);
             if($options['hidden'] === 'unhide') $p->removeStatus(Page::statusHidden);

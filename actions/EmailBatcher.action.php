@@ -14,7 +14,7 @@ class EmailBatcher extends ProcessAdminActions {
     protected function defineOptions() {
 
         $rolesOptions = array();
-        foreach($this->roles->find("sort=name") as $role) $rolesOptions[$role->id] = $role->name;
+        foreach($this->wire('roles')->find("sort=name") as $role) $rolesOptions[$role->id] = $role->name;
 
         return array(
             array(
@@ -53,7 +53,7 @@ class EmailBatcher extends ProcessAdminActions {
                 'description' => 'Select the field from the selected pages that contains the recipient email addresses.',
                 'type' => 'select',
                 'columnWidth' => 50,
-                'options' => $this->fields->find("type=FieldtypeEmail")->getArray(),
+                'options' => $this->wire('fields')->find("type=FieldtypeEmail")->getArray(),
                 'required' => true,
                 'requiredIf' => 'pages!=""',
                 'showIf' => 'pages!=""'
@@ -100,11 +100,11 @@ class EmailBatcher extends ProcessAdminActions {
         if($options['testAddress']) $testAddress = $options['testAddress'];
 
         if($options['userRoles']) {
-            $recipients = $this->users->find("roles=".implode('|', $options['userRoles']));
+            $recipients = $this->wire('users')->find("roles=".implode('|', $options['userRoles']));
             $emailField = 'email';
         }
         elseif($options['pages']) {
-            $recipients = $this->pages->find($options['pages']);
+            $recipients = $this->wire('pages')->find($options['pages']);
             $emailField = $options['email'];
         }
 
@@ -120,7 +120,7 @@ class EmailBatcher extends ProcessAdminActions {
             }
 
             //replace curly braces codes with matching PW field names
-            $htmlBody = $this->sanitizer->purify($options['body']);
+            $htmlBody = $this->wire('sanitizer')->purify($options['body']);
             $htmlBody = $this->parseBody($htmlBody, $options['fromEmail'], $recipient);
 
             $sent = $this->sendNewUserEmail($toEmail, $options['fromEmail'], $options['fromName'], $options['subject'], $htmlBody);
@@ -136,7 +136,7 @@ class EmailBatcher extends ProcessAdminActions {
     }
 
     private function sendNewUserEmail($toEmail, $fromEmail, $fromName, $subject, $htmlBody) {
-        $mailer = $this->mail->new();
+        $mailer = $this->wire('mail')->new();
         $mailer->to($toEmail);
         $mailer->from($fromEmail);
         $mailer->fromName($fromName);

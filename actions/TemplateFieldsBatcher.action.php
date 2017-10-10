@@ -13,7 +13,7 @@ class TemplateFieldsBatcher extends ProcessAdminActions {
     protected function defineOptions() {
 
         $fieldOptions = array();
-        foreach($this->fields as $field) {
+        foreach($this->wire('fields') as $field) {
             if ($field->flags & Field::flagSystem || $field->flags & Field::flagPermanent) continue;
             $fieldOptions[$field->id] = $field->name;
         }
@@ -25,7 +25,7 @@ class TemplateFieldsBatcher extends ProcessAdminActions {
                 'description' => 'Select the templates that you want to manipulate',
                 'type' => 'AsmSelect',
                 'required' => true,
-                'options' => $this->templates->find("sort=name, flags!=".Template::flagSystem)->getArray()
+                'options' => $this->wire('templates')->find("sort=name, flags!=".Template::flagSystem)->getArray()
             ),
             array(
                 'name' => 'fields',
@@ -55,7 +55,7 @@ class TemplateFieldsBatcher extends ProcessAdminActions {
     protected function executeAction($options) {
 
         foreach($options['templates'] as $template_id) {
-            $template = $this->templates->get((int)$template_id);
+            $template = $this->wire('templates')->get((int)$template_id);
             foreach($options['fields'] as $field_id) {
                 if($options['addOrRemove'] == "add") {
                     $template->fields->add((int)$field_id);

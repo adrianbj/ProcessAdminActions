@@ -15,9 +15,9 @@ class CreateUsersBatcher extends ProcessAdminActions {
     protected function defineOptions() {
 
         $rolesOptions = array();
-        foreach($this->roles as $role) $rolesOptions[$role->id] = $role->name;
+        foreach($this->wire('roles') as $role) $rolesOptions[$role->id] = $role->name;
 
-        $this->userFields = $this->templates->get("user")->fields->find("name!=roles");
+        $this->userFields = $this->wire('templates')->get("user")->fields->find("name!=roles");
 
         return array(
             array(
@@ -46,8 +46,8 @@ class CreateUsersBatcher extends ProcessAdminActions {
         $passwordFailureMessage = "If you don't specify a password, the EmailNewUser module has to be installed and the Generate Password option must be checked.";
 
         if($this->wire('modules')->isInstalled("EmailNewUser")) {
-            $this->modules->get("EmailNewUser");
-            $emailNewUserSettings = $this->modules->getModuleConfigData('EmailNewUser');
+            $this->wire('modules')->get("EmailNewUser");
+            $emailNewUserSettings = $this->wire('modules')->getModuleConfigData('EmailNewUser');
         }
 
         // if there is no new line at the end, add one to fix issue if last item in CSV row has enclosures but others don't
@@ -118,7 +118,7 @@ class CreateUsersBatcher extends ProcessAdminActions {
             }
             else {
                 $i=1;
-                foreach($this->templates->get("user")->fields as $f) {
+                foreach($this->wire('templates')->get("user")->fields as $f) {
                     if($f->name == 'roles') continue;
                     if($f->name == 'pass' && $newUserArr[$i] == '' && (!$this->wire('modules')->isInstalled("EmailNewUser") || !$emailNewUserSettings['generatePassword'])) {
                         $this->failureMessage = $passwordFailureMessage;

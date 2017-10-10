@@ -14,7 +14,11 @@ class FtpFilesToPage extends ProcessAdminActions {
     protected function defineOptions() {
 
         $folderOptions = array();
-        $dir = new \DirectoryIterator($this->config->paths->cache.'AdminActions/');
+        $adminActionsCacheDir = $this->wire('config')->paths->cache . 'AdminActions/';
+        if(!file_exists($adminActionsCacheDir)) wireMkdir($adminActionsCacheDir);
+
+        $dir = new \DirectoryIterator($adminActionsCacheDir);
+
         foreach($dir as $item) {
             if(!$item->isDir() || $item->isDot()) continue;
             $folderOptions[$item->getPathname()] = $item->getFilename();
@@ -25,7 +29,7 @@ class FtpFilesToPage extends ProcessAdminActions {
                 'name' => 'sourceFolder',
                 'label' => 'Source Folder',
                 'description' => 'The source folder for the files',
-                'notes' => 'You can choose any subfolder of /site/assets/cache/AdminActions/',
+                'notes' => (empty($folderOptions) ? 'You need to add files to a subfolder you have created under /site/assets/cache/AdminActions/' : ''),
                 'type' => 'select',
                 'options' => $folderOptions,
                 'required' => true
@@ -36,7 +40,7 @@ class FtpFilesToPage extends ProcessAdminActions {
                 'description' => 'Choose the field that you want the files added to',
                 'type' => 'select',
                 'required' => true,
-                'options' => $this->fields->find("type=FieldtypeFile|FieldtypeImage")->getArray()
+                'options' => $this->wire('fields')->find("type=FieldtypeFile|FieldtypeImage")->getArray()
             ),
             array(
                 'name' => 'destinationPage',
@@ -58,8 +62,8 @@ class FtpFilesToPage extends ProcessAdminActions {
     protected function executeAction($options) {
 
         $sourceFolder = $options['sourceFolder'];
-        $fieldName = $this->fields->get((int)$options['field'])->name;
-        $destinationPage = $this->pages->get((int)$options['destinationPage']);
+        $fieldName = $this->wire('fields')->get((int)$options['field'])->name;
+        $destinationPage = $this->wire('pages')->get((int)$options['destinationPage']);
         $deleteFolder = (bool)$options['deleteFolder'];
 
         $destinationPage->of(false);

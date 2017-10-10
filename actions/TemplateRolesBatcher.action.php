@@ -14,7 +14,7 @@ class TemplateRolesBatcher extends ProcessAdminActions {
     protected function defineOptions() {
 
         $rolesOptions = array();
-        foreach($this->roles as $role) $rolesOptions[$role->id] = $role->name;
+        foreach($this->wire('roles') as $role) $rolesOptions[$role->id] = $role->name;
 
         return array(
             array(
@@ -23,7 +23,7 @@ class TemplateRolesBatcher extends ProcessAdminActions {
                 'description' => 'Select the templates that you want to manipulate',
                 'type' => 'AsmSelect',
                 'required' => true,
-                'options' => $this->templates->find("sort=name, flags!=".Template::flagSystem)->getArray()
+                'options' => $this->wire('templates')->find("sort=name, flags!=".Template::flagSystem)->getArray()
             ),
             array(
                 'name' => 'roles',
@@ -88,7 +88,7 @@ class TemplateRolesBatcher extends ProcessAdminActions {
 
         foreach($options['templates'] as $template_id) {
 
-            $template = $this->templates->get((int)$template_id);
+            $template = $this->wire('templates')->get((int)$template_id);
 
             $allRoles = array();
             foreach(array('editRoles', 'createRoles', 'addRoles') as $access) {
@@ -97,7 +97,7 @@ class TemplateRolesBatcher extends ProcessAdminActions {
                     $role_id = (int)$role_id;
                     if($options[$access] == "add") {
                         if($access == "createRoles" && !in_array($role_id, $template->editRoles)) continue; //in case they check to add Create without Edit which is not allowed
-                        if($this->roles->get($role_id)->hasPermission("page-edit")) $allRoles[] = $role_id; // page-edit check shouldn't actually be necessary here since list of available roles is already limited to these anyway
+                        if($this->wire('roles')->get($role_id)->hasPermission("page-edit")) $allRoles[] = $role_id; // page-edit check shouldn't actually be necessary here since list of available roles is already limited to these anyway
                     }
                     elseif($options[$access] == "remove") {
                         if($access == "editRoles"){ //in case they check to remove Edit, then automatically remove Create because this is not allowed
@@ -114,7 +114,7 @@ class TemplateRolesBatcher extends ProcessAdminActions {
                     }
                 }
                 $template->useRoles = 1;
-                $template->roles = $this->pages->get($this->config->rolesPageID)->children("name!=superuser");
+                $template->roles = $this->wire('pages')->get($this->wire('config')->rolesPageID)->children("name!=superuser");
                 $template->$access = array_unique($allRoles); // remove duplicates in case user tries to add role that is already set
             }
 

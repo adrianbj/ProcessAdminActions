@@ -14,7 +14,7 @@ class DeleteUnusedTemplates extends ProcessAdminActions {
     protected function defineOptions() {
 
         $templateOptions = array();
-        foreach($this->templates as $template) if(!$template->getNumPages()) $templateOptions[$template->id] = $template->label ? $template->name . ' (' . $template->label . ')' : $template->name;
+        foreach($this->wire('templates') as $template) if(!$template->getNumPages()) $templateOptions[$template->id] = $template->label ? $template->name . ' (' . $template->label . ')' : $template->name;
 
         return array(
             array(
@@ -34,11 +34,11 @@ class DeleteUnusedTemplates extends ProcessAdminActions {
     protected function executeAction($options) {
 
         foreach($options['templates'] as $template_id) {
-            $template = $this->templates->get((int)$template_id);
-            $this->templates->delete($template);
+            $template = $this->wire('templates')->get((int)$template_id);
+            $this->wire('templates')->delete($template);
             $templateName = $template->name;
-            $fieldgroup = $this->fieldgroups->get($templateName);
-            $this->fieldgroups->delete($fieldgroup);
+            $fieldgroup = $this->wire('fieldgroups')->get($templateName);
+            $this->wire('fieldgroups')->delete($fieldgroup);
         }
         $count = count($options['templates']);
         $this->successMessage = $count . ' template' . _n('', 's', $count) . ' ' . _n('was', 'were', $count) . ' successfully deleted';

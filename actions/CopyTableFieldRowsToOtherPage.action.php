@@ -13,7 +13,7 @@ class CopyTableFieldRowsToOtherPage extends ProcessAdminActions {
 
     protected function checkRequirements() {
         if(!$this->wire('modules')->isInstalled("FieldtypeTable")) {
-            $this->error('The Table field type is not currently installed.');
+            $this->wire()->error('The Table field type is not currently installed.');
             return false;
         }
         else {
@@ -29,7 +29,7 @@ class CopyTableFieldRowsToOtherPage extends ProcessAdminActions {
                 'description' => 'Choose the Table field that you want to copy',
                 'type' => 'select',
                 'required' => true,
-                'options' => $this->fields->find("type=FieldtypeTable")->getArray()
+                'options' => $this->wire('fields')->find("type=FieldtypeTable")->getArray()
             ),
             array(
                 'name' => 'tableRowSelector',
@@ -71,11 +71,11 @@ class CopyTableFieldRowsToOtherPage extends ProcessAdminActions {
 
     protected function executeAction($options) {
 
-        $tableField = $this->fields->get((int)$options['tableField']);
+        $tableField = $this->wire('fields')->get((int)$options['tableField']);
         $tableFieldName = $tableField->name;
         $tableFieldType = $tableField->type;
-        $sourcePage = $this->pages->get((int)$options['sourcePage']);
-        $destinationPage = $this->pages->get((int)$options['destinationPage']);
+        $sourcePage = $this->wire('pages')->get((int)$options['sourcePage']);
+        $destinationPage = $this->wire('pages')->get((int)$options['destinationPage']);
 
         $sourcePage->of(false);
         $totalRows = $sourcePage->$tableFieldName->getTotal();

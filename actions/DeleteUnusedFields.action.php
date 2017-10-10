@@ -14,7 +14,7 @@ class DeleteUnusedFields extends ProcessAdminActions {
     protected function defineOptions() {
 
         $fieldOptions = array();
-        foreach($this->fields as $field) {
+        foreach($this->wire('fields') as $field) {
             if ($field->flags & Field::flagSystem || $field->flags & Field::flagPermanent) continue;
             if(count($field->getFieldgroups()) === 0) $fieldOptions[$field->id] = $field->label ? $field->name . ' (' . $field->label . ')' : $field->name;
         }
@@ -37,8 +37,8 @@ class DeleteUnusedFields extends ProcessAdminActions {
     protected function executeAction($options) {
 
         foreach($options['fields'] as $field_id) {
-            $field = $this->fields->get((int)$field_id);
-            $this->fields->delete($field);
+            $field = $this->wire('fields')->get((int)$field_id);
+            $this->wire('fields')->delete($field);
         }
         $count = count($options['fields']);
         $this->successMessage = $count . ' field' . _n('', 's', $count) . ' ' . _n('was', 'were', $count) . ' successfully deleted';

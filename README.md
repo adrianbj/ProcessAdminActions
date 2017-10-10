@@ -72,7 +72,7 @@ A new action file can be as simple as this:
 class UnpublishAboutPage extends ProcessAdminActions {
 
     protected function executeAction() {
-        $p = $this->pages->get('/about/');
+        $p = $this->wire('pages')->get('/about/');
         $p->addStatus(Page::statusUnpublished);
         $p->save();
         return true;
@@ -105,7 +105,7 @@ class DeleteUnusedFields extends ProcessAdminActions {
     protected function defineOptions() {
 
         $fieldOptions = array();
-        foreach($this->fields as $field) {
+        foreach($this->wire('fields') as $field) {
             if ($field->flags & Field::flagSystem || $field->flags & Field::flagPermanent) continue;
             if(count($field->getFieldgroups()) === 0) $fieldOptions[$field->id] = $field->label ? $field->label . ' (' . $field->name . ')' : $field->name;
         }
@@ -129,8 +129,8 @@ class DeleteUnusedFields extends ProcessAdminActions {
 
         $count = 0;
         foreach($options['fields'] as $field) {
-            $f = $this->fields->get($field);
-            $this->fields->delete($f);
+            $f = $this->wire('fields')->get($field);
+            $this->wire('fields')->delete($f);
             $count++;
         }
 
