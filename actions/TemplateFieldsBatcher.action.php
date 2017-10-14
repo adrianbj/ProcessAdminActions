@@ -2,6 +2,7 @@
 
 class TemplateFieldsBatcher extends ProcessAdminActions {
 
+    protected $title = 'Template Fields Batcher';
     protected $description = 'Lets you add or remove multiple fields from multiple templates at once.';
     protected $author = 'Adrian Jones';
     protected $authorLinks = array(

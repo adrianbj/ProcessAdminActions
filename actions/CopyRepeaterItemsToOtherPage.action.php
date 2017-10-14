@@ -2,6 +2,7 @@
 
 class CopyRepeaterItemsToOtherPage extends ProcessAdminActions {
 
+    protected $title = 'Copy Repeater Items to Other Page';
     protected $description = 'Add the items from a Repeater field on one page to the same field on another page.';
     protected $notes = 'If the field on the destination page already has items, you can choose to append, or overwrite.';
     protected $author = 'Adrian Jones';

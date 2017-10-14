@@ -2,6 +2,7 @@
 
 class CopyTableFieldRowsToOtherPage extends ProcessAdminActions {
 
+    protected $title = 'Copy Table Field Rows to Other Page';
     protected $description = 'Add the rows from a Table field on one page to the same field on another page.';
     protected $notes = 'If the field on the destination page already has rows, you can choose to append, or overwrite.';
     protected $author = 'Adrian Jones';

@@ -2,6 +2,7 @@
 
 class DeleteUnusedTemplates extends ProcessAdminActions {
 
+    protected $title = 'Delete Unused Templates';
     protected $description = 'Deletes templates that are not used by any pages.';
     protected $notes = 'Shows a list of unused templates with checkboxes to select those to delete.';
     protected $author = 'Adrian Jones';

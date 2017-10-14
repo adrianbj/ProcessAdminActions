@@ -2,6 +2,7 @@
 
 class TemplateRolesBatcher extends ProcessAdminActions {
 
+    protected $title = 'Template Roles Batcher';
     protected $description = 'Lets you add or remove access permissions, for multiple roles and multiple templates at once.';
     protected $notes = 'Access permission options are: Edit Pages, Create Pages, and Add Children.';
     protected $author = 'Adrian Jones';

@@ -2,6 +2,7 @@
 
 class DeleteUnusedFields extends ProcessAdminActions {
 
+    protected $title = 'Delete Unused Fields';
     protected $description = 'Deletes fields that are not used by any templates.';
     protected $notes = 'Shows a list of unused fields with checkboxes to select those to delete.';
     protected $author = 'Adrian Jones';

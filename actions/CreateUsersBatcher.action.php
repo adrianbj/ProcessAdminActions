@@ -2,6 +2,7 @@
 
 class CreateUsersBatcher extends ProcessAdminActions {
 
+    protected $title = 'Create Users Batcher';
     protected $description = 'Allows you to batch create users.';
     protected $notes = 'Having the Email New User module installed and configured to generate a password automatically is recommended. It is also recommended that you install the Password Force Change module.';
     protected $author = 'Adrian Jones';

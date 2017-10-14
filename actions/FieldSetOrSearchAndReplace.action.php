@@ -3,6 +3,7 @@
 
 class FieldSetOrSearchAndReplace extends ProcessAdminActions {
 
+    protected $title = 'Field Set or Search and Replace';
     protected $description = 'Set field values, or search and replace text in field values from a filtered selection of pages and fields.';
     protected $notes = 'This can be very destructive - please be careful!';
     protected $author = 'Adrian Jones';

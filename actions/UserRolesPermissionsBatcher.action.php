@@ -2,6 +2,7 @@
 
 class UserRolesPermissionsBatcher extends ProcessAdminActions {
 
+    protected $title = 'User Roles Permission Batcher';
     protected $description = 'Lets you add or remove permissions for multiple roles, or roles for multiple users at once.';
     protected $notes = 'Role selections are required. If all three have selections, permissions will be modified in roles and roles modified in users.';
     protected $author = 'Adrian Jones';

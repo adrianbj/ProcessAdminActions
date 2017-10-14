@@ -2,6 +2,7 @@
 
 class FtpFilesToPage extends ProcessAdminActions {
 
+    protected $title = 'FTP Files to Page';
     protected $description = 'Add files/images from a folder to a selected page.';
     protected $notes = 'This is useful if you want to FTP files, rather than upload via the admin.';
     protected $author = 'Adrian Jones';

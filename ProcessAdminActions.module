@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.6.0',
+            'version' => '0.6.1',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -54,7 +54,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                 foreach($actions as $action => $info) {
                     if(isset($info['menu']) && $info['menu'] == '1' && isset($info['roles']) && count(array_intersect($info['roles'], $this->wire('user')->roles->each("id"))) !== 0) {
                         $options['items'][$i]['id'] = 'options?action='.$action;
-                        $options['items'][$i]['label'] = $this->getActionName($action);
+                        $options['items'][$i]['label'] = $this->getActionTitle($action, $info);
                         $i++;
                     }
                 }
@@ -128,7 +128,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $this->getActionTypes();
 
         if($this->wire('input')->get->action) {
-            if(count(array_intersect($this->data[$this->actionTypes[$this->wire('input')->get->action]][$this->wire('input')->get->action]['roles'], $this->wire('user')->roles->each("id"))) !== 0) {
+            if(isset($this->actionTypes[$this->wire('input')->get->action]) && count(array_intersect($this->data[$this->actionTypes[$this->wire('input')->get->action]][$this->wire('input')->get->action]['roles'], $this->wire('user')->roles->each("id"))) !== 0) {
                 require_once $this->getActionPath($this->wire('input')->get->action);
                 $actionName = $this->wire('input')->get->action;
                 $this->action = new $actionName;
@@ -167,7 +167,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         if(!$this->hasPermission) return $this->noPermissionMessage;
 
-        $out = '<h2>'.$this->getActionName($this->action->className).'</h2>';
+        $out = '<h2>'.$this->getActionTitle($this->wire('input')->get->action, $this->data[$this->actionTypes[$this->wire('input')->get->action]][$this->wire('input')->get->action]).'</h2>';
 
         if(method_exists($this->action,'checkRequirements') && !$this->action->checkRequirements()) {
             $out .= '<div class="adminActionsError"><p>Sorry, this action cannot proceed.</p><p>' . $this->action->requirementsMessage . '</p></div>';
@@ -191,9 +191,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         if(!$this->hasPermission) return $this->noPermissionMessage;
 
-        $actionName = $this->getActionName($this->action->className);
-
-        $actionTitle = '<h2>'.$actionName.'</h2>';
+        $actionTitle = $this->getActionTitle($this->wire('input')->get->action, $this->data[$this->actionTypes[$this->wire('input')->get->action]][$this->wire('input')->get->action]);
 
         $form = $this->buildOptionsForm();
         // build up $options array to pass to the action's executeAction method
@@ -232,7 +230,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             }
         }
         elseif(count($this->wire('input')->post) === 0) {
-            return $actionTitle . '<p>Some required form options are missing.</p>';
+            return '<h2>' . $actionTitle . '</h2><p>Some required form options are missing.</p>';
         }
         else {
             $form->processInput($this->wire('input')->post);
@@ -252,11 +250,11 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         // execute action and render output
         if($this->action->executeAction($options) && !$form->getErrors()) {
-            return $actionTitle . $this->action->output . '<div class="adminActionsSuccess">' . ($this->action->successMessage == '' ? '<p>The '.$actionName.' action was completed successfully.</p>' : '<p>' . $this->action->successMessage . '</p>') . '</div>' . $restoreLink;
+            return '<h2>' . $actionTitle . '</h2>' . $this->action->output . '<div class="adminActionsSuccess">' . ($this->action->successMessage == '' ? '<p>The '.$actionTitle.' action was completed successfully.</p>' : '<p>' . $this->action->successMessage . '</p>') . '</div>' . $restoreLink;
         }
         else {
-            $this->wire()->error('Sorry, the '.$actionName.' action could not be completed successfully.');
-            return $actionTitle . ($this->action->failureMessage ? '<div class="adminActionsError"><p>' . $this->action->failureMessage . '</p></div><br /><br />' : '') . $form->render();
+            $this->wire()->error('Sorry, the '.$actionTitle.' action could not be completed successfully.');
+            return '<h2>' . $actionTitle . '</h2>' . ($this->action->failureMessage ? '<div class="adminActionsError"><p>' . $this->action->failureMessage . '</p></div><br /><br />' : '') . $form->render();
         }
 
     }
@@ -318,7 +316,6 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         $tabsWrapper = new InputfieldWrapper();
         $tabsWrapper->attr("id", "ActionsList");
-        $tabsWrapper->attr("title", "Actions");
 
         // get core actions in module folder
         $this->getActions(__DIR__ . '/actions', false);
@@ -358,7 +355,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             foreach($actionsList as $action => $info) {
                 if($this->getActionPath($action) && isset($info['roles']) && count(array_intersect($info['roles'], $this->wire('user')->roles->each("id"))) !== 0) {
                     $row = array(
-                        '<p><strong><a href="./options?action='.$action.'">'.$this->getActionName($action).'</a></strong></p>',
+                        '<p><strong><a href="./options?action='.$action.'">'.$this->getActionTitle($action, $info).'</a></strong></p>',
                         isset($info['description']) ? $info['description'] : '',
                         isset($info['notes']) ? '<span class="notes">'.$info['notes'].'</span>' : '',
                         isset($info['author']) ? '<span class="adminActionsAuthor">'.$info['author'].'<br />' . ($info['authorLinks'] ? $this->authorLinks($info['authorLinks']) : '') . '</span>' : '',
@@ -488,6 +485,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                 if($instantiate) {
                     require_once $this->getActionPath($className);
                     $action = new $className;
+                    $this->actions[$actionType][$className]['title'] = $action->title;
                     $this->actions[$actionType][$className]['description'] = $action->description;
                     $this->actions[$actionType][$className]['notes'] = $action->notes;
                     $this->actions[$actionType][$className]['author'] = $action->author;
@@ -550,8 +548,14 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
     }
 
 
-    private function getActionName($className) {
-        return preg_replace('/(?<=\\w)(?=[A-Z])/'," $1", $className);
+    private function getActionTitle($className, $info = null) {
+
+        if($info && isset($info['title'])) {
+            return $info['title'];
+        }
+        else {
+            return preg_replace('/(?<=\\w)(?=[A-Z])/'," $1", $className);
+        }
     }
 
 
@@ -600,7 +604,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
 
     protected function modifyBreadcrumb($event) {
-        $this->wire('breadcrumbs')->add(new Breadcrumb('./options?action='.$this->wire('input')->get->action, $this->getActionName($this->wire('input')->get->action)));
+        $this->wire('breadcrumbs')->add(new Breadcrumb('./options?action='.$this->wire('input')->get->action, $this->getActionTitle($this->wire('input')->get->action, $this->data[$this->actionTypes[$this->wire('input')->get->action]][$this->wire('input')->get->action])));
     }
 
 
@@ -736,7 +740,6 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         $tabsWrapper = new InputfieldWrapper();
         $tabsWrapper->attr("id", "ActionsList");
-        $tabsWrapper->attr("title", "Actions");
 
         if(isset($this->actions['site'])) ksort($this->actions['site']);
         ksort($this->actions['core']);
@@ -761,11 +764,12 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                 __('Title'),
                 __('Info'),
                 __('Roles'),
-                __('In Menu'),
+                __('In&nbsp;Menu'),
                 __('Author')
             ));
 
             foreach($actionsList as $action => $info) {
+                $actionTitle = $this->getActionTitle($action, $info);
                 if(!$data || !isset($data['core'])) {
                     $allData[$actionType][$info['name']]['roles'] = array($this->wire('roles')->get('superuser')->id);
                     $rolesValue = array($this->wire('roles')->get('superuser')->id);
@@ -793,7 +797,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                 $siteActions = isset($data['site']) ? $data['site'] : array();
                 $rowClass = isset($data['core']) && !array_key_exists($action, $siteActions) && !array_key_exists($action, $data['core']) ? 'newAction' : '';
                 $row = array(
-                    '<strong>'.$this->getActionName($action).'</strong>',
+                    '<strong>'.$actionTitle.'</strong>',
                     (isset($info['description']) ? $info['description'] : '') . (isset($info['notes']) ? '<br /><span class="notes">'.$info['notes'].'</span>' : ''),
                     $rolesWrapper->render(),
                     $menuWrapper->render(),
@@ -804,6 +808,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                 $actionsCount++;
 
                 // prepare initial description, notes, and author values
+                $allData[$actionType][$info['name']]['title'] = $actionTitle;
                 $allData[$actionType][$info['name']]['description'] = $info['description'];
                 $allData[$actionType][$info['name']]['notes'] = $info['notes'];
                 $allData[$actionType][$info['name']]['author'] = $info['author'];

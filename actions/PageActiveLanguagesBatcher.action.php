@@ -2,6 +2,7 @@
 
 class PageActiveLanguagesBatcher extends ProcessAdminActions {
 
+    protected $title = 'Page Active Languages Batcher';
     protected $description = 'Lets you enable or disable active status of multiple languages on multiple pages at once.';
     protected $author = 'Adrian Jones';
     protected $authorLinks = array(

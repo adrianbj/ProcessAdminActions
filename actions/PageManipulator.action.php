@@ -2,6 +2,7 @@
 
 class PageManipulator extends ProcessAdminActions {
 
+    protected $title = 'Page Manipulator';
     protected $description = 'Uses an InputfieldSelector to query pages and then allows batch actions on the matched pages.';
     protected $notes = 'Actions are: Publish, Unpublish, Hide, Unhide, Trash, Delete, Change Template, Change Parent';
     protected $author = 'Adrian Jones';

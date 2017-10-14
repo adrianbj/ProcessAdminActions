@@ -2,6 +2,7 @@
 
 class PageTableToRepeaterMatrix extends ProcessAdminActions {
 
+    protected $title = 'Page Table to Repeater / Repeater Matrix';
     protected $description = 'Fully converts an existing (and populated) PageTable field to either a Repeater or RepeaterMatrix field.';
     protected $notes = 'By default it will choose Repeater or RepeaterMatrix based on the number of templates in the PageTable field, but you can also choose to force RepeaterMatrix.';
     protected $author = 'Adrian Jones';

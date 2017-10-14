@@ -2,6 +2,7 @@
 
 class EmailBatcher extends ProcessAdminActions {
 
+    protected $title = 'Email Batcher';
     protected $description = 'Lets you email multiple addresses at once.';
     protected $notes = 'You can select "Pages" or "User Roles" for determining the recipients.';
     protected $author = 'Adrian Jones';
