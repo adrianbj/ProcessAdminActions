@@ -90,6 +90,8 @@ class EmailBatcher extends ProcessAdminActions {
                 'description' => 'If you enter HTML, a text only version will be created automatically and both sent.',
                 'notes' => 'You can use any fields from the page template within your email body, eg: Dear {first_name} where "first_name" is a template field. You can also use {fromEmail} and {adminUrl}.',
                 'type' => 'CKEditor',
+                'usePurifier' => false,
+                'useACF' => false,
                 'required' => true
             )
         );
@@ -121,7 +123,7 @@ class EmailBatcher extends ProcessAdminActions {
             }
 
             //replace curly braces codes with matching PW field names
-            $htmlBody = $this->wire('sanitizer')->purify($options['body']);
+            $htmlBody = $options['body'];
             $htmlBody = $this->parseBody($htmlBody, $options['fromEmail'], $recipient);
 
             $sent = $this->sendNewUserEmail($toEmail, $options['fromEmail'], $options['fromName'], $options['subject'], $htmlBody);
