@@ -3,14 +3,14 @@
 Processwire module for running various admin actions
 
 
-#### Support forum:
+### Support forum:
 https://processwire.com/talk/topic/14921-admin-actions/
 
-#### Introduction
+### Introduction
 
 Admin Actions lets you quickly create actions in the admin that you can use over and over and even make available to your site editors (permissions for each action are assigned to roles separately so you have full control over who has access to which actions).
 
-#### Included Actions
+### Included Actions
 
 It comes bundled with a several actions and I will be adding more over time (and hopefully I'll get some PRs from you guys too). You can browse and sort and filter based on the content of all columns.
 
@@ -62,7 +62,7 @@ Lets you add or remove access permissions, for multiple roles and multiple templ
 **User Roles Permissions Batcher**
 Lets you add or remove permissions for multiple roles, or roles for multiple users at once.
 
-#### Creating a New Action
+### Creating a New Action
 
 If you create a new action that you think others would find useful, please add it to the "actions" subfolder of this module and submit a PR. If you think it is only useful for you, place it in /site/templates/AdminActions/ so that it doesn't get lost on module updates.
 
@@ -148,7 +148,7 @@ There is one additional method that I didn't outline called: checkRequirements()
 
 At the end of the executeAction() method you can populate $this->successMessage, or $this->failureMessage which will be returned after the action has finished.
 
-#### Populating options via URL parameters
+### Populating options via URL parameters
 
 You can also populate the option parameters via URL parameters. You should split multiple values with a "|" character.
 
@@ -162,7 +162,7 @@ http://mysite.dev/processwire/setup/admin-actions/execute?action=TemplateFieldsB
 ```
 Note the "options" vs "execute" as the last path segment before the parameters.
 
-#### Calling an action via the API
+### Calling an action via the API
 
 You can call an action easily via the API. Here's an example of copying content of a field from one page to another.
 
@@ -176,7 +176,7 @@ $options = array(
 $modules->get("ProcessAdminActions")->CopyFieldContentToOtherPage($options);
 ```
 
-#### Automatic Backup / Restore
+### Automatic Backup / Restore
 
 Before any action is executed, a full database backup is automatically made. You have a few options to run a restore if needed:
 

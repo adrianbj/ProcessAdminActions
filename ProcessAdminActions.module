@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.6.2',
+            'version' => '0.6.3',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -333,6 +333,15 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         foreach($this->data as $actionType => $actionsList) {
 
             if(!is_array($actionsList)) continue;
+
+            // if the users has no actions in this list (site or core) with permission for their role, then don't display the tab
+            $hasTypePermission = false;
+            foreach($actionsList as $action => $info) {
+                if($this->getActionPath($action) && isset($info['roles']) && count(array_intersect($info['roles'], $this->wire('user')->roles->each("id"))) !== 0) {
+                    $hasTypePermission = true;
+                }
+            }
+            if(!$hasTypePermission) continue;
 
             $tab = new InputfieldWrapper();
             $tab->attr('id', 'tab_'.$actionType.'_actions');
