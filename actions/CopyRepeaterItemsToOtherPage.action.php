@@ -30,7 +30,7 @@ class CopyRepeaterItemsToOtherPage extends ProcessAdminActions {
                 'description' => 'Choose the Repeater field that you want to copy',
                 'type' => 'select',
                 'required' => true,
-                'options' => $this->wire('fields')->find("type=FieldtypeRepeater")->getArray()
+                'options' => $this->wire('fields')->find("type=FieldtypeRepeater|FieldtypeRepeaterMatrix")->getArray()
             ),
             array(
                 'name' => 'repeaterItemSelector',
@@ -74,9 +74,16 @@ class CopyRepeaterItemsToOtherPage extends ProcessAdminActions {
 
         $repeaterField = $this->wire('fields')->get((int)$options['repeaterField']);
         $repeaterFieldName = $repeaterField->name;
-        $repeaterFieldType = $repeaterField->type;
         $sourcePage = $this->wire('pages')->get((int)$options['sourcePage']);
+	    if(!$sourcePage->fields->get($repeaterFieldName)) {
+		    $this->failureMessage = 'Field ' . $repeaterFieldName . ' does not exist on page ' . $sourcePage->path;
+		    return false;
+	    }
         $destinationPage = $this->wire('pages')->get((int)$options['destinationPage']);
+	    if(!$destinationPage->fields->get($repeaterFieldName)) {
+		    $this->failureMessage = 'Field ' . $repeaterFieldName . ' does not exist on page ' . $destinationPage->path;
+		    return false;
+	    }
 
         $sourcePage->of(false);
         $destinationPage->of(false);
@@ -101,6 +108,11 @@ class CopyRepeaterItemsToOtherPage extends ProcessAdminActions {
                 $subFieldName = $this->wire('fields')->get($subfield)->name;
                 $repeaterItemClone->$subFieldName = $item->$subFieldName;
             }
+
+	        if(PagefilesManager::hasFiles($item)) {
+		        $repeaterItemClone->filesManager->init($repeaterItemClone);
+		        $item->filesManager->copyFiles($repeaterItemClone->filesManager->path());
+	        }
 
             $repeaterItemClone->save();
         }
