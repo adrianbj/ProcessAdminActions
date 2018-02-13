@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.6.3',
+            'version' => '0.6.4',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -151,6 +151,17 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
      */
     public function ___execute() {
         $form = $this->buildSelectForm();
+
+        $f = $this->wire('modules')->get("InputfieldMarkup");
+        $out = '<div style="float:right">';
+        if($this->wire('user')->isSuperuser()) {
+            $out .= "<a href='" . $this->wire('config')->urls->admin . "module/edit?name=ProcessAdminActions&collapse_info=1'><i class='fa fa-cog'></i> Settings</a>&nbsp;&nbsp;";
+        }
+        $out .= "<a href='https://processwire.com/talk/topic/14921-admin-actions/' target='_blank'><i class='fa fa-comments'></i> Support</a>";
+        $out .= '</div>';
+        $f->value = $out;
+        $form->prepend($f);
+
         if($this->wire('input')->post->submit) {
             return $this->processSelectForm($form);
         }
