@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.6.5',
+            'version' => '0.6.6',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -103,7 +103,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
      */
     static public function getDefaultData() {
             return array(
-                "dbBackup" => "automatic"
+
             );
     }
 
@@ -140,7 +140,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             }
         }
 
-        $this->dbBackup = isset($this->action->dbBackup) ? $this->action->dbBackup : $this->data['dbBackup'];
+        $this->dbBackup = isset($this->action->dbBackup) ? $this->action->dbBackup : (isset($this->data['dbBackup']) ? $this->data['dbBackup'] : 'automatic');
 
     }
 
