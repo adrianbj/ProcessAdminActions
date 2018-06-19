@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.6.6',
+            'version' => '0.6.7',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -484,7 +484,13 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         if(file_exists($actionPath = __DIR__ . '/actions/'.$className.'.action.php')) {
             return $actionPath;
         }
+        elseif(file_exists($actionPath = __DIR__ . '/actions/'.$className.'/'.$className.'.action.php')) {
+            return $actionPath;
+        }
         elseif(file_exists($actionPath = $this->wire('config')->paths->templates.'AdminActions/'.$className.'.action.php')) {
+            return $actionPath;
+        }
+        elseif(file_exists($actionPath = $this->wire('config')->paths->templates.'AdminActions/'.$className.'/'.$className.'.action.php')) {
             return $actionPath;
         }
         else {
@@ -494,8 +500,8 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
 
     private function getActions($folderPath, $instantiate = true) {
-        foreach(new \DirectoryIterator($folderPath) as $file) {
-            if($file->isDot()) continue;
+        foreach(new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($folderPath, \RecursiveDirectoryIterator::SKIP_DOTS), \RecursiveIteratorIterator::SELF_FIRST) as $file) {
+            if($file->isDir()) continue;
             if(substr($file->getBasename(), 0, 1) == '.') continue;
             if($file->isFile()) {
                 $actionType = strpos($this->wire('config')->paths->templates.'AdminActions/', $folderPath) !== false ? 'site' : 'core';
