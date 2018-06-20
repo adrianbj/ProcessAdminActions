@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.6.7',
+            'version' => '0.6.8',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -152,21 +152,18 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
     public function ___execute() {
         $form = $this->buildSelectForm();
 
-        $f = $this->wire('modules')->get("InputfieldMarkup");
-        $out = '<div style="float:right">';
         if($this->wire('user')->isSuperuser()) {
-            $out .= "<a href='" . $this->wire('config')->urls->admin . "module/edit?name=".$this->className."&collapse_info=1'><i class='fa fa-cog'></i> Settings</a>&nbsp;&nbsp;";
+            $links = '<div id="links">';
+            $links .= "<a href='" . $this->wire('config')->urls->admin . "module/edit?name=".$this->className."&collapse_info=1'><i class='fa fa-cog'></i> Settings</a>&nbsp;&nbsp;";
+            $links .= "<a href='https://processwire.com/talk/topic/14921-admin-actions/' target='_blank'><i class='fa fa-comments'></i> Support</a>";
+            $links .= '</div>';
         }
-        $out .= "<a href='https://processwire.com/talk/topic/14921-admin-actions/' target='_blank'><i class='fa fa-comments'></i> Support</a>";
-        $out .= '</div>';
-        $f->value = $out;
-        $form->prepend($f);
 
         if($this->wire('input')->post->submit) {
-            return $this->processSelectForm($form);
+            return $links . $this->processSelectForm($form);
         }
         else {
-            return is_string($form) ? $form : $form->render();
+            return $links . (is_string($form) ? $form : $form->render());
         }
     }
 
@@ -257,6 +254,12 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         }
         else {
             $restoreLink = '';
+        }
+
+        // check initial form errors before executing first and redirect back to options page
+        if($form->getErrors()) {
+            $referer = isset($_SERVER['HTTP_REFERER']) ? $this->wire('sanitizer')->text($_SERVER['HTTP_REFERER']) : './options?'.$this->wire('input')->queryString();
+            $this->wire('session')->redirect($referer);
         }
 
         // execute action and render output
@@ -377,9 +380,9 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                 if($this->getActionPath($action) && isset($info['roles']) && count(array_intersect($info['roles'], $this->wire('user')->roles->each("id"))) !== 0) {
                     $row = array(
                         '<p><strong><a href="./options?action='.$action.'">'.$this->getActionTitle($action, $info).'</a></strong></p>',
-                        isset($info['description']) ? $info['description'] : '',
-                        isset($info['notes']) ? '<span class="notes">'.$info['notes'].'</span>' : '',
-                        isset($info['author']) ? '<span class="adminActionsAuthor">'.$info['author'].'<br />' . ($info['authorLinks'] ? $this->authorLinks($info['authorLinks']) : '') . '</span>' : '',
+                        isset($info['description']) && $info['description'] != '' ? $info['description'] : '',
+                        isset($info['notes']) && $info['notes'] != '' ? '<span class="notes">'.$info['notes'].'</span>' : '',
+                        isset($info['author']) && $info['author'] != '' ? '<span class="adminActionsAuthor">'.$info['author'].'<br />' . ($info['authorLinks'] ? $this->authorLinks($info['authorLinks']) : '') . '</span>' : '',
 
                     );
                     $table->row($row);
@@ -561,13 +564,13 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         foreach($authorLinks as $resource => $link) {
             switch ($resource) {
                 case 'pwdirectory':
-                    $out .= ' <a href="http://directory.processwire.com/developers/'.$link.'/" title="ProcessWire developer profile">'.$pwIcon.'</a>';
+                    if($link != '') $out .= ' <a href="http://directory.processwire.com/developers/'.$link.'/" title="ProcessWire developer profile">'.$pwIcon.'</a>';
                     break;
                 case 'pwforum':
-                    $out .= ' <a href="https://processwire.com/talk/profile/'.$link.'/" title="ProcessWire forum profile">'.$pwforumIcon.'</a>';
+                    if($link != '') $out .= ' <a href="https://processwire.com/talk/profile/'.$link.'/" title="ProcessWire forum profile">'.$pwforumIcon.'</a>';
                     break;
                 case 'github':
-                    $out .= ' <a href="https://github.com/'.$link.'/" title="Github profile">'.$githubIcon.'</a>';
+                    if($link != '') $out .= ' <a href="https://github.com/'.$link.'/" title="Github profile">'.$githubIcon.'</a>';
                     break;
             }
         }

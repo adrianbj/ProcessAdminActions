@@ -1,3 +1,10 @@
+div#links {
+    width: 100%;
+    display: table;
+    text-align: right;
+    height: 65px;
+}
+
 .Inputfields .InputfieldMarkup .InputfieldContent {
     margin-top: 0 !important;
 }
