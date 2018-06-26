@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.6.8',
+            'version' => '0.6.9',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -178,7 +178,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $out = '<h2>'.$this->getActionTitle($this->wire('input')->get->action, $this->data[$this->actionTypes[$this->wire('input')->get->action]][$this->wire('input')->get->action]).'</h2>';
 
         if(method_exists($this->action,'checkRequirements') && !$this->action->checkRequirements()) {
-            $out .= '<div class="adminActionsError"><p>Sorry, this action cannot proceed.</p><p>' . $this->action->requirementsMessage . '</p></div>';
+            $out .= '<div class="adminActionsError"><p>Sorry, this action cannot proceed. ' . $this->action->requirementsMessage . '</p></div>';
         }
         else {
             $form = $this->buildOptionsForm();

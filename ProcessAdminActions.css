@@ -27,7 +27,11 @@ table.AdminDataList.adminactions td:nth-child(4), table.AdminDataList.adminactio
 
 .adminActionsError, .adminActionsWarning, .adminActionsSuccess {
     width: 100%;
-    padding:1px 10px;
+    padding: 10px;
+}
+
+.adminActionsError p, .adminActionsWarning p, .adminActionsSuccess p {
+    margin: 0;
 }
 
 .adminActionsError {

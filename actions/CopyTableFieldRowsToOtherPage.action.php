@@ -14,7 +14,7 @@ class CopyTableFieldRowsToOtherPage extends ProcessAdminActions {
 
     protected function checkRequirements() {
         if(!$this->wire('modules')->isInstalled("FieldtypeTable")) {
-            $this->wire()->error('The Table field type is not currently installed.');
+            $this->requirementsMessage = 'The Table field type is not currently installed.';
             return false;
         }
         else {
