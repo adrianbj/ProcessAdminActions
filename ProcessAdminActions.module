@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.6.9',
+            'version' => '0.6.10',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -256,16 +256,15 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             $restoreLink = '';
         }
 
-        // check initial form errors before executing first and redirect back to options page
+        // if form errors, render the form without executing it
         if($form->getErrors()) {
-            $referer = isset($_SERVER['HTTP_REFERER']) ? $this->wire('sanitizer')->text($_SERVER['HTTP_REFERER']) : './options?'.$this->wire('input')->queryString();
-            $this->wire('session')->redirect($referer);
+            return '<h2>' . $actionTitle . '</h2>' . $form->render();
         }
-
         // execute action and render output
-        if($this->action->executeAction($options) && !$form->getErrors()) {
+        elseif($this->action->executeAction($options) && !$form->getErrors()) {
             return '<h2>' . $actionTitle . '</h2>' . $this->action->output . '<div class="adminActionsSuccess">' . ($this->action->successMessage == '' ? '<p>The '.$actionTitle.' action was completed successfully.</p>' : '<p>' . $this->action->successMessage . '</p>') . '</div>' . $restoreLink;
         }
+        // execution errors so return the failure message and render the form again
         else {
             $this->wire()->error('Sorry, the '.$actionTitle.' action could not be completed successfully.');
             return '<h2>' . $actionTitle . '</h2>' . ($this->action->failureMessage ? '<div class="adminActionsError"><p>' . $this->action->failureMessage . '</p></div><br /><br />' : '') . $form->render();
