@@ -62,6 +62,19 @@ class PageManipulator extends ProcessAdminActions {
                 'value' => 'nochange'
             ),
             array(
+                'name' => 'locked',
+                'label' => 'Locked',
+                'type' => 'radios',
+                'optionColumns' => 1,
+                'options' => array(
+                    'nochange' => 'No Change',
+                    'locked' => 'Locked',
+                    'unlocked' => 'Unlocked'
+                ),
+                'required' => true,
+                'value' => 'nochange'
+            ),
+            array(
                 'name' => 'changeParent',
                 'label' => 'Change Parent',
                 'type' => 'pageListSelect',
@@ -90,6 +103,8 @@ class PageManipulator extends ProcessAdminActions {
             if($options['hidden'] === 'unhide') $p->removeStatus(Page::statusHidden);
             if($options['published'] === 'publish') $p->removeStatus(Page::statusUnpublished);
             if($options['published'] === 'unpublish') $p->addStatus(Page::statusUnpublished);
+            if($options['locked'] === 'locked') $p->addStatus(Page::statusLocked);
+            if($options['locked'] === 'unlocked') $p->removeStatus(Page::statusLocked);
 
             if($options['changeParent']) $p->parent = (int)$options['changeParent'];
             if($options['changeTemplate']) $p->template = (int)$options['changeTemplate'];
