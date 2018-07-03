@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.6.11',
+            'version' => '0.6.12',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -686,8 +686,9 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
 
     public function __call($method, $args) {
-        if(!$this->has($method)) return parent::__call($method, $args);
-        require_once $this->getActionPath($method);
+        $actionFilePath = $this->getActionPath($method);
+        if(!file_exists($actionFilePath)) return parent::__call($method, $args);;
+        require_once $actionFilePath;
         $this->action = new $method;
         $this->action->executeAction($args[0]);
         if(array_key_exists('dbBackup', $args[0])) $this->backupDb();
