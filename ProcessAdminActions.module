@@ -687,7 +687,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
     public function __call($method, $args) {
         $actionFilePath = $this->getActionPath($method);
-        if(!file_exists($actionFilePath)) return parent::__call($method, $args);;
+        if(!file_exists($actionFilePath)) return parent::__call($method, $args);
         require_once $actionFilePath;
         $this->action = new $method;
         $this->action->executeAction($args[0]);
