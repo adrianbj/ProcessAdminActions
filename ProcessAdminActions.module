@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.7.0',
+            'version' => '0.7.1',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -145,7 +145,6 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         }
 
         $this->dbBackup = isset($this->action->dbBackup) ? $this->action->dbBackup : (isset($this->data['dbBackup']) ? $this->data['dbBackup'] : 'automatic');
-
     }
 
 
@@ -334,8 +333,8 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $tabsWrapper = new InputfieldWrapper();
         $tabsWrapper->attr("id", "ActionsList");
 
+        // get all actions and check to see if there are any new ones not in the module settings database
         $this->getAllActions(false);
-
         if($this->wire('user')->isSuperuser() && $this->newActionsAvailable()) {
             $this->wire()->warning("There are new actions available - please visit the <a href='".$this->config->urls->admin . 'module/edit?name=' . $this."'>module config settings</a> to adjust approved roles and menu status.", Notice::allowMarkup);
         }
@@ -348,7 +347,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
             if(!is_array($actionsList)) continue;
 
-            // if the users has no actions in this list (site or core) with permission for their role, then don't display the tab
+            // if the user has no actions in this list (site or core) with permission for their role, then don't display the tab
             $hasTypePermission = false;
             foreach($actionsList as $action => $info) {
                 if($this->getActionPath($action) && isset($info['roles']) && count(array_intersect($info['roles'], $this->wire('user')->roles->each("id"))) !== 0) {
@@ -745,8 +744,8 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $rolesOptions = array();
         foreach($this->wire('roles')->find("name!=guest") as $role) $rolesOptions[$role->id] = $role->name;
 
+        // get all actions and check to see if there are any new ones not in the module settings database
         $this->getAllActions();
-
         if(isset($this->data['core'])) {
             if($this->newActionsAvailable()) $this->wire()->warning("There are new actions available (highlighted in orange) - please adjust approved roles and menu status, and click Submit to save.");
         }
@@ -826,9 +825,9 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
             foreach($actionsList as $action => $info) {
                 $actionTitle = $this->getActionTitle($action, $info);
-                if(!$data || !isset($data['core'])) {
-                    $allData[$actionType][$info['name']]['roles'] = array($this->wire('roles')->get('superuser')->id);
+                if(!$data || !isset($data['core']) || !isset($data[$actionType][$info['name']])) {
                     $rolesValue = array($this->wire('roles')->get('superuser')->id);
+                    $allData[$actionType][$info['name']]['roles'] = $rolesValue;
                 }
                 else {
                     $rolesValue = isset($data[$actionType][$info['name']]['roles']) ? $data[$actionType][$info['name']]['roles'] : null;

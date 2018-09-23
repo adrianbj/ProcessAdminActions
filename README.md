@@ -64,7 +64,39 @@ Lets you add or remove permissions for multiple roles, or roles for multiple use
 
 ### Creating a New Action
 
-If you create a new action that you think others would find useful, please add it to the "actions" subfolder of this module and submit a PR. If you think it is only useful for you, place it in /site/templates/AdminActions/ so that it doesn't get lost on module updates.
+#### Custom Site Actions
+You can create new actions and place them in /site/templates/AdminActions/ so they don't get lost on module updates. These modules will appear under a new "Site" tab on the actions table.
+
+#### Shared Site Actions
+If you create a new action that you think others would find useful, please create a new AdminActions module and submit to the ProcessWire modules directory.
+
+Shared actions to be shared must include a PW module file. There are two requirements:
+
+1. It's classname must start with "AdminActions"
+2. It must have `'requires' => 'ProcessAdminActions'`
+
+This is the entire contents needed in a file named AdminActionsMySharedAction.module
+
+Once this module is installed on a site, AdminActions will detect it and allow users to configure and use it like any other action.
+
+```
+class AdminActionsMySharedAction extends WireData implements Module {
+
+    public static function getModuleInfo() {
+        return array(
+            'title' => 'Admin Actions My Shared Action',
+            'summary' => 'My new action does really cool stuff',
+            'version' => '0.1.0',
+            'author' => 'John Doe',
+            'href' => 'https://github.com/JohnDoe/AdminActionsMySharedAction',
+            'requires' => 'ProcessAdminActions'
+        );
+    }
+
+}
+```
+
+
 
 A new action file can be as simple as this:
 
