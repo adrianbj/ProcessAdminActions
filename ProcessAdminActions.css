@@ -1,12 +1,16 @@
 div#links {
-    width: 100%;
-    display: table;
+    margin-left: calc(100% - 250px);
     text-align: right;
-    height: 65px;
+    position: relative;
+    top: 35px;
+    z-index: 5;
 }
 
-.Inputfields .InputfieldMarkup .InputfieldContent {
-    margin-top: 0 !important;
+#ActionsList {
+    background: none;
+}
+#Inputfield_instructions .InputfieldHeader, #Inputfield_instructions .InputfieldContent {
+    background: none !important;
 }
 
 table.AdminDataList.adminactions td:first-child, table.AdminDataList.adminactions th:first-child {
@@ -40,7 +44,7 @@ table.AdminDataList.adminactions td:nth-child(4), table.AdminDataList.adminactio
 }
 
 .adminActionsWarning {
-    background: #FF9933;
+    background: #FFD15E;
 }
 
 .adminActionsSuccess {
@@ -65,8 +69,7 @@ table.AdminDataList.adminactions td:nth-child(4), table.AdminDataList.adminactio
 /* Config settings styles */
 
 table.AdminDataList.adminactionsconfig tr.newAction, .AdminDataTable tr.newAction td:first-child {
-    background: #FF9933;
-    color: #FFFFFF !important;
+    background: #FFD15E;
 }
 
 table.AdminDataList.adminactionsconfig td:first-child, table.AdminDataList.adminactionsconfig th:first-child {
