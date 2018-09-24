@@ -96,7 +96,10 @@ class AdminActionsMySharedAction extends WireData implements Module {
 }
 ```
 
+A good example of an installable action is @Toutouwai's [Unordered List to Pages](https://processwire.com/talk/topic/20025-unordered-list-to-pages-action-for-admin-actions/)
 
+
+#### Custom action examples
 
 A new action file can be as simple as this:
 
