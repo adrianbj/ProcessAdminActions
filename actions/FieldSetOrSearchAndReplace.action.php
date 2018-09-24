@@ -13,6 +13,8 @@ class FieldSetOrSearchAndReplace extends ProcessAdminActions {
         'github' => 'adrianbj',
     );
 
+    protected $executeButtonLabel = 'Set Field Values';
+
     protected function defineOptions() {
 
         $fieldOptions = array();

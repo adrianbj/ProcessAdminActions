@@ -12,6 +12,8 @@ class PageManipulator extends ProcessAdminActions {
         'github' => 'adrianbj',
     );
 
+    protected $executeButtonLabel = 'Apply Changes';
+
     protected function defineOptions() {
         return array(
             array(

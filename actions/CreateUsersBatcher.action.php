@@ -12,6 +12,7 @@ class CreateUsersBatcher extends ProcessAdminActions {
         'github' => 'adrianbj',
     );
 
+    protected $executeButtonLabel = 'Create Users';
 
     protected function defineOptions() {
 

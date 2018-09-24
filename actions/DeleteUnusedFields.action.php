@@ -12,6 +12,8 @@ class DeleteUnusedFields extends ProcessAdminActions {
         'github' => 'adrianbj',
     );
 
+    protected $executeButtonLabel = 'Delete Checked Fields';
+
     protected function defineOptions() {
 
         $fieldOptions = array();

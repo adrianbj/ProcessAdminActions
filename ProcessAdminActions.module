@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.7.4',
+            'version' => '0.7.5',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -469,7 +469,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         $f = $this->wire('modules')->get("InputfieldSubmit");
         $f->name = 'submit';
-        $f->value = __('Execute Action');
+        $f->value = $this->action->executeButtonLabel ?: __('Execute Action');
         $form->add($f);
 
         //preset any fields provided as URL parameters

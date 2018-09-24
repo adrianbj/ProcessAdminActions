@@ -12,6 +12,8 @@ class FtpFilesToPage extends ProcessAdminActions {
         'github' => 'adrianbj',
     );
 
+    protected $executeButtonLabel = 'Add Files to Page';
+
     protected function defineOptions() {
 
         $folderOptions = array();

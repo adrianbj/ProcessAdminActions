@@ -12,6 +12,8 @@ class DeleteUnusedTemplates extends ProcessAdminActions {
         'github' => 'adrianbj',
     );
 
+    protected $executeButtonLabel = 'Delete Checked Templates';
+
     protected function defineOptions() {
 
         $templateOptions = array();
