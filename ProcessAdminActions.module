@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.7.1',
+            'version' => '0.7.2',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -153,6 +153,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
      *
      */
     public function ___execute() {
+
         $form = $this->buildSelectForm();
 
         if($this->wire('user')->isSuperuser()) {
@@ -336,7 +337,10 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         // get all actions and check to see if there are any new ones not in the module settings database
         $this->getAllActions(false);
         if($this->wire('user')->isSuperuser() && $this->newActionsAvailable()) {
-            $this->wire()->warning("There are new actions available - please visit the <a href='".$this->config->urls->admin . 'module/edit?name=' . $this."'>module config settings</a> to adjust approved roles and menu status.", Notice::allowMarkup);
+            $this->wire('session')->redirect($this->wire('config')->urls->admin . "module/edit?name=".$this."&install=1");
+        }
+        else {
+            $this->wire('session')->warnings('clear');
         }
 
         if(isset($this->data['site'])) ksort($this->data['site']);
@@ -746,7 +750,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         // get all actions and check to see if there are any new ones not in the module settings database
         $this->getAllActions();
-        if(isset($this->data['core'])) {
+        if($this->wire('input')->get->install !== 1 && isset($this->data['core'])) {
             if($this->newActionsAvailable()) $this->wire()->warning("There are new actions available (highlighted in orange) - please adjust approved roles and menu status, and click Submit to save.");
         }
         else {
@@ -825,13 +829,14 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
             foreach($actionsList as $action => $info) {
                 $actionTitle = $this->getActionTitle($action, $info);
-                if(!$data || !isset($data['core']) || !isset($data[$actionType][$info['name']])) {
+                if(empty($data) || !isset($data['core']) || !isset($data[$actionType][$info['name']])) {
                     $rolesValue = array($this->wire('roles')->get('superuser')->id);
-                    $allData[$actionType][$info['name']]['roles'] = $rolesValue;
                 }
                 else {
                     $rolesValue = isset($data[$actionType][$info['name']]['roles']) ? $data[$actionType][$info['name']]['roles'] : null;
                 }
+                $allData[$actionType][$info['name']]['roles'] = $rolesValue;
+
                 $rolesWrapper = new InputfieldWrapper();
                 $fr = $this->wire('modules')->get("InputfieldAsmSelect");
                 $fr->attr('name', 'roles_'.$info['name']);
@@ -879,7 +884,12 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $wrapper->add($fieldset);
 
         // save initial data when $data is empty on module install
-        if(!$data) $this->wire('modules')->saveModuleConfigData($this, $allData);
+        // or we have redirected from Setup > Admin Actions to install the new actions
+        if(empty($data) || $this->wire('input')->get->install == 1) $this->wire('modules')->saveModuleConfigData($this, $allData);
+
+        // if we have redirected from Setup > Admin Actions to install the new actions
+        // then redirect back to this page now that we have saved the config data
+        if($this->wire('input')->get->install == 1) $this->wire('session')->redirect($this->processPageUrl);
 
         // modify what is stored when settings saved so we can have the multidimensional array of data
         $this->wire('modules')->addHookBefore('saveModuleConfigData', null, function($event) use ($allData) {
