@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.7.2',
+            'version' => '0.7.3',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -544,13 +544,13 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
     }
 
     private function getInfoFieldValues($className, $fieldName) {
-        $actionModuleInfo = $this->wire('modules')->getModuleInfoVerbose('AdminActions'.$className);
-        if(isset($actionModuleInfo) && isset($actionModuleInfo[$fieldName])) {
+        if($this->wire('modules')->isInstalled('AdminActions'.$className)) {
+            $actionModuleInfo = $this->wire('modules')->getModuleInfoVerbose('AdminActions'.$className);
             if($fieldName == 'title') {
                 return str_replace(array('Admin Actions ', 'Admin Action '), '', $actionModuleInfo[$fieldName]);
             }
             else {
-                return $actionModuleInfo[$fieldName];
+                return isset($actionModuleInfo[$fieldName]) ? $actionModuleInfo[$fieldName] : '';
             }
         }
         else {
