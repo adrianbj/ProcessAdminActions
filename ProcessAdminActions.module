@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.7.3',
+            'version' => '0.7.4',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -327,6 +327,8 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
      */
     private function buildSelectForm() {
 
+        $this->wire('session')->warnings('clear');
+
         $form = $this->wire('modules')->get("InputfieldForm");
         $form->name = 'select';
         $form->method = 'post';
@@ -337,10 +339,10 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         // get all actions and check to see if there are any new ones not in the module settings database
         $this->getAllActions(false);
         if($this->wire('user')->isSuperuser() && $this->newActionsAvailable()) {
-            $this->wire('session')->redirect($this->wire('config')->urls->admin . "module/edit?name=".$this."&install=1");
+            $this->wire('session')->redirect($this->wire('config')->urls->admin . "module/edit?name=" . $this . "&install=1");
         }
-        else {
-            $this->wire('session')->warnings('clear');
+        elseif($this->wire('input')->get->installed) {
+            $this->wire()->warning($this->wire('input')->get->installed . " new " . _n('action was', 'actions were', $this->wire('input')->get->installed) . " installed. If you need to adjust role access and menu status, visit please visit the <a href='".$this->wire('config')->urls->admin . 'module/edit?name=' . $this . "'>module config settings</a>.", Notice::allowMarkup);
         }
 
         if(isset($this->data['site'])) ksort($this->data['site']);
@@ -684,8 +686,10 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
     private function newActionsAvailable() {
         $siteActionsDir = isset($this->actions['site']) ? $this->actions['site'] : array();
         $siteActionsDB = isset($this->data['site']) ? $this->data['site'] : array();
-        if((count($siteActionsDir) + count($this->actions['core'])) > (count($siteActionsDB) + count($this->data['core']))) {
-            return true;
+        $totalCount = count($siteActionsDir) + count($this->actions['core']);
+        $installedCount = count($siteActionsDB) + count($this->data['core']);
+        if($totalCount > $installedCount) {
+            return $totalCount - $installedCount;
         }
         else {
             return false;
@@ -751,10 +755,11 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         // get all actions and check to see if there are any new ones not in the module settings database
         $this->getAllActions();
         if($this->wire('input')->get->install !== 1 && isset($this->data['core'])) {
-            if($this->newActionsAvailable()) $this->wire()->warning("There are new actions available (highlighted in orange) - please adjust approved roles and menu status, and click Submit to save.");
+            $this->newActionsAvailable = $this->newActionsAvailable();
+            if($this->newActionsAvailable) $this->wire()->warning("There are new actions available (highlighted in orange) - please adjust approved roles and menu status, and click Submit to save.");
         }
         else {
-            $this->wire()->warning("Please check the \"Roles\" and \"In Menu\" settings for all the actions and adjust for your needs.");
+            $this->wire()->warning("Please check the roles and menu status for all the actions and adjust to your needs.");
         }
 
         if(!array_key_exists('dbBackup', $data)) {
@@ -889,7 +894,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         // if we have redirected from Setup > Admin Actions to install the new actions
         // then redirect back to this page now that we have saved the config data
-        if($this->wire('input')->get->install == 1) $this->wire('session')->redirect($this->processPageUrl);
+        if($this->wire('input')->get->install == 1) $this->wire('session')->redirect($this->processPageUrl.'?installed='.$this->newActionsAvailable);
 
         // modify what is stored when settings saved so we can have the multidimensional array of data
         $this->wire('modules')->addHookBefore('saveModuleConfigData', null, function($event) use ($allData) {
