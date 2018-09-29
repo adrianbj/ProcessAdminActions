@@ -12,6 +12,7 @@ class PageActiveLanguagesBatcher extends ProcessAdminActions {
     );
 
     protected $executeButtonLabel = 'Adjust Language Statuses';
+    protected $icon = 'language';
 
     protected function checkRequirements() {
         if(!$this->wire('modules')->isInstalled("LanguageSupport")) {

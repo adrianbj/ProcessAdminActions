@@ -13,6 +13,7 @@ class FtpFilesToPage extends ProcessAdminActions {
     );
 
     protected $executeButtonLabel = 'Add Files to Page';
+    protected $icon = 'upload';
 
     protected function defineOptions() {
 

@@ -13,6 +13,7 @@ class PageManipulator extends ProcessAdminActions {
     );
 
     protected $executeButtonLabel = 'Apply Changes';
+    protected $icon = 'cog';
 
     protected function defineOptions() {
         return array(

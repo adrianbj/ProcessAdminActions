@@ -13,6 +13,7 @@ class UserRolesPermissionsBatcher extends ProcessAdminActions {
     );
 
     protected $executeButtonLabel = 'Apply Changes';
+    protected $icon = 'cogs';
 
     protected function defineOptions() {
 

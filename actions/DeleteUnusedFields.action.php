@@ -13,6 +13,7 @@ class DeleteUnusedFields extends ProcessAdminActions {
     );
 
     protected $executeButtonLabel = 'Delete Checked Fields';
+    protected $icon = 'minus-circle';
 
     protected function defineOptions() {
 

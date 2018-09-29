@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.7.5',
+            'version' => '0.7.6',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -38,6 +38,22 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             )
         );
     }
+
+
+    /**
+     * Data as used by the get/set functions
+     *
+     */
+    protected $data = array();
+    protected $action;
+    protected $actions = array();
+    protected $actionTypes = array();
+    protected $hasPermission = false;
+    protected $adminActionsCacheDir;
+    protected $dbBackupFilename;
+    protected $dbBackup;
+    protected $noPermissionMessage = 'Sorry, you do not have permission to use this action.';
+    protected $processPageUrl;
 
 
     /**
@@ -72,6 +88,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                     if(isset($info['menu']) && $info['menu'] == '1' && isset($info['roles']) && count(array_intersect($info['roles'], $this->wire('user')->roles->each("id"))) !== 0) {
                         $options['items'][$i]['id'] = 'options?action='.$action;
                         $options['items'][$i]['label'] = $this->getActionTitle($action, $info);
+                        $options['items'][$i]['icon'] = isset($info['icon']) ? $info['icon'] : '';
                         $i++;
                     }
                 }
@@ -100,27 +117,15 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
     }
 
 
-    /**
-     * Data as used by the get/set functions
-     *
-     */
-    protected $data = array();
-    protected $actions = array();
-    protected $actionTypes = array();
-    protected $hasPermission = false;
-    protected $adminActionsCacheDir;
-    protected $dbBackupFilename;
-    protected $dbBackup;
-    protected $noPermissionMessage = 'Sorry, you do not have permission to use this action.';
-
-
    /**
      * Default configuration for module
      *
      */
     static public function getDefaultData() {
             return array(
-
+                // intentionally blank
+                // this method is required by ProcessWire, but we don't use it for this module
+                // because defaults are saved as multidimensional JSON on install
             );
     }
 
@@ -382,7 +387,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             foreach($actionsList as $action => $info) {
                 if($this->getActionPath($action) && isset($info['roles']) && count(array_intersect($info['roles'], $this->wire('user')->roles->each("id"))) !== 0) {
                     $row = array(
-                        '<p><strong><a href="./options?action='.$action.'">'.$this->getActionTitle($action, $info).'</a></strong></p>',
+                        '<p><strong><a href="./options?action='.$action.'">'.($info['icon'] ? '<i class="fa fa-'.$info['icon'].'"></i> ' : '').$this->getActionTitle($action, $info).'</a></strong></p>',
                         isset($info['description']) && $info['description'] != '' ? $info['description'] : '',
                         isset($info['notes']) && $info['notes'] != '' ? '<span class="notes">'.$info['notes'].'</span>' : '',
                     );
@@ -536,6 +541,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                     $this->actions[$actionType][$className]['title'] = $action->title ?: $this->getInfoFieldValues($className, 'title');
                     $this->actions[$actionType][$className]['description'] = $action->description ?: $this->getInfoFieldValues($className, 'summary');
                     $this->actions[$actionType][$className]['notes'] = $action->notes ?: $this->getInfoFieldValues($className, 'notes');
+                    $this->actions[$actionType][$className]['icon'] = $action->icon ?: $this->getInfoFieldValues($className, 'icon');
                     $this->actions[$actionType][$className]['author'] = $action->author ?: $this->getInfoFieldValues($className, 'author');
                     $this->actions[$actionType][$className]['authorLinks'] = $action->authorLinks;
                 }
@@ -612,7 +618,6 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
 
     private function getActionTitle($className, $info = null) {
-
         if($info && isset($info['title'])) {
             $title = $info['title'];
         }
@@ -862,7 +867,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                 $siteActions = isset($data['site']) ? $data['site'] : array();
                 $rowClass = isset($data['core']) && !array_key_exists($action, $siteActions) && !array_key_exists($action, $data['core']) ? 'newAction' : '';
                 $row = array(
-                    '<strong><a href="'.$this->processPageUrl.'options?action='.$action.'">'.$actionTitle.'</a></strong><br />' . ($this->wire('modules')->isInstalled('AdminActions'.$action) ? '<a title="AdminActions'.$action.' settings" href="'.$this->wire('config')->urls->admin . 'module/edit?name=AdminActions'.$action.'"><i class="fa fa-cog"></i></a>' : ''),
+                    '<strong><a href="'.$this->processPageUrl.'options?action='.$action.'">'.($info['icon'] ? '<i class="fa fa-'.$info['icon'].'"></i> ' : '').' '.$actionTitle.'</a></strong>' . ($this->wire('modules')->isInstalled('AdminActions'.$action) ? '&nbsp;&nbsp;&nbsp;<a title="AdminActions'.$actionTitle.' settings" href="'.$this->wire('config')->urls->admin . 'module/edit?name=AdminActions'.$action.'"><i class="fa fa-cog"></i></a>' : ''),
                     (isset($info['description']) ? $info['description'] : '') . (isset($info['notes']) ? '<br /><span class="notes">'.$info['notes'].'</span>' : ''),
                     $rolesWrapper->render(),
                     $menuWrapper->render(),
@@ -876,6 +881,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                 $allData[$actionType][$info['name']]['title'] = $actionTitle;
                 $allData[$actionType][$info['name']]['description'] = $info['description'];
                 $allData[$actionType][$info['name']]['notes'] = $info['notes'];
+                $allData[$actionType][$info['name']]['icon'] = $info['icon'];
                 $allData[$actionType][$info['name']]['author'] = $info['author'];
                 $allData[$actionType][$info['name']]['authorLinks'] = $info['authorLinks'];
 

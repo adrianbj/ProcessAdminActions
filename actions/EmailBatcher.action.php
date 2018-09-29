@@ -13,6 +13,7 @@ class EmailBatcher extends ProcessAdminActions {
     );
 
     protected $executeButtonLabel = 'Send Emails';
+    protected $icon = 'envelope';
 
     protected function defineOptions() {
 

@@ -13,6 +13,7 @@ class DeleteUnusedTemplates extends ProcessAdminActions {
     );
 
     protected $executeButtonLabel = 'Delete Checked Templates';
+    protected $icon = 'minus-circle';
 
     protected function defineOptions() {
 

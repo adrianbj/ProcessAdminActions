@@ -13,6 +13,7 @@ class PageTableToRepeaterMatrix extends ProcessAdminActions {
     );
 
     protected $executeButtonLabel = 'Convert Field';
+    protected $icon = 'exchange';
 
     protected function checkRequirements() {
         if(!$this->wire('modules')->isInstalled("FieldtypeRepeater") && !$this->wire('modules')->isInstallable("FieldtypeRepeater", true)) {

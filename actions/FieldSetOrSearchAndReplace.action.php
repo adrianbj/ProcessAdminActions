@@ -14,6 +14,7 @@ class FieldSetOrSearchAndReplace extends ProcessAdminActions {
     );
 
     protected $executeButtonLabel = 'Set Field Values';
+    protected $icon = 'search-plus';
 
     protected function defineOptions() {
 

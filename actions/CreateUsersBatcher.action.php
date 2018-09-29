@@ -13,6 +13,7 @@ class CreateUsersBatcher extends ProcessAdminActions {
     );
 
     protected $executeButtonLabel = 'Create Users';
+    protected $icon = 'user-plus';
 
     protected function defineOptions() {
 

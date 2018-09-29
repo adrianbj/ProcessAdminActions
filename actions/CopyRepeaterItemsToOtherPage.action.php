@@ -13,6 +13,7 @@ class CopyRepeaterItemsToOtherPage extends ProcessAdminActions {
     );
 
     protected $executeButtonLabel = 'Copy Repeater Items';
+    protected $icon = 'copy';
 
     protected function checkRequirements() {
         if(!$this->wire('modules')->isInstalled("FieldtypeRepeater")) {

@@ -12,6 +12,7 @@ class TemplateFieldsBatcher extends ProcessAdminActions {
     );
 
     protected $executeButtonLabel = 'Apply Field Changes';
+    protected $icon = 'cube';
 
     protected function defineOptions() {
 

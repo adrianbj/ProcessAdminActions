@@ -13,6 +13,7 @@ class CopyFieldContentToOtherPage extends ProcessAdminActions {
     );
 
     protected $executeButtonLabel = 'Copy Content';
+    protected $icon = 'copy';
 
     protected function defineOptions() {
         return array(

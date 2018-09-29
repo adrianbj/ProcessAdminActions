@@ -13,6 +13,7 @@ class CopyTableFieldRowsToOtherPage extends ProcessAdminActions {
     );
 
     protected $executeButtonLabel = 'Copy Table Rows';
+    protected $icon = 'copy';
 
     protected function checkRequirements() {
         if(!$this->wire('modules')->isInstalled("FieldtypeTable")) {

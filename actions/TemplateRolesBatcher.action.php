@@ -13,6 +13,7 @@ class TemplateRolesBatcher extends ProcessAdminActions {
     );
 
     protected $executeButtonLabel = 'Apply Roles Changes';
+    protected $icon = 'cubes';
 
     protected function defineOptions() {
 
