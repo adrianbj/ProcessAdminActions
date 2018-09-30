@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.7.6',
+            'version' => '0.7.7',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -339,7 +339,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $form->method = 'post';
 
         $tabsWrapper = new InputfieldWrapper();
-        $tabsWrapper->attr("id", "ActionsList");
+        $tabsWrapper->attr("id", "AdminActionsList");
 
         // get all actions and check to see if there are any new ones not in the module settings database
         $this->getAllActions(false);
@@ -808,7 +808,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $wrapper->add($fieldset);
 
         $tabsWrapper = new InputfieldWrapper();
-        $tabsWrapper->attr("id", "ActionsList");
+        $tabsWrapper->attr("id", "AdminActionsList");
 
         if(isset($this->actions['site'])) ksort($this->actions['site']);
         ksort($this->actions['core']);

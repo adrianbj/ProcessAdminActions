@@ -1,3 +1,11 @@
+.Inputfields .InputfieldMarkup .InputfieldContent {
+    margin-top: 0;
+}
+
+html.AdminThemeDefault li#AdminActionsList ul.WireTabs {
+    margin-top: 3em;
+}
+
 div#links {
     margin-left: calc(100% - 250px);
     text-align: right;
@@ -6,7 +14,7 @@ div#links {
     z-index: 5;
 }
 
-#ActionsList {
+#AdminActionsList {
     background: none;
 }
 #Inputfield_instructions .InputfieldHeader, #Inputfield_instructions .InputfieldContent {
