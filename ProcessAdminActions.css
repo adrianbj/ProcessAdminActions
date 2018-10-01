@@ -2,7 +2,7 @@
     margin-top: 0;
 }
 
-html.AdminThemeDefault li#AdminActionsList ul.WireTabs {
+.AdminThemeDefault li#AdminActionsList ul.WireTabs {
     margin-top: 3em;
 }
 
@@ -11,12 +11,13 @@ div#links {
     text-align: right;
     position: relative;
     top: 35px;
-    z-index: 5;
+    z-index: 103;
 }
 
 #AdminActionsList {
     background: none;
 }
+
 #Inputfield_instructions .InputfieldHeader, #Inputfield_instructions .InputfieldContent {
     background: none !important;
 }

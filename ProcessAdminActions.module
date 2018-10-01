@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.7.7',
+            'version' => '0.7.8',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'cog',
@@ -387,7 +387,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             foreach($actionsList as $action => $info) {
                 if($this->getActionPath($action) && isset($info['roles']) && count(array_intersect($info['roles'], $this->wire('user')->roles->each("id"))) !== 0) {
                     $row = array(
-                        '<p><strong><a href="./options?action='.$action.'">'.($info['icon'] ? '<i class="fa fa-'.$info['icon'].'"></i> ' : '').$this->getActionTitle($action, $info).'</a></strong></p>',
+                        '<p><strong><a href="./options?action='.$action.'">'.(isset($info['icon']) && $info['icon'] != '' ? '<i class="fa fa-'.$info['icon'].'"></i> ' : '').$this->getActionTitle($action, $info).'</a></strong></p>',
                         isset($info['description']) && $info['description'] != '' ? $info['description'] : '',
                         isset($info['notes']) && $info['notes'] != '' ? '<span class="notes">'.$info['notes'].'</span>' : '',
                     );
