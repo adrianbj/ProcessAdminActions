@@ -4,7 +4,7 @@ class CopyRepeaterItemsToOtherPage extends ProcessAdminActions {
 
     protected $title = 'Copy Repeater Items to Other Page';
     protected $description = 'Add the items from a Repeater/RepeaterMatrix field on one page to the same field on another page.';
-    protected $notes = 'If the field on the destination page already has items, you can choose to append, or overwrite.';
+    protected $notes = 'If the field on the destination page already has items, you can choose to append or reset.';
     protected $author = 'Adrian Jones';
     protected $authorLinks = array(
         'pwforum' => '985-adrian',
@@ -57,17 +57,17 @@ class CopyRepeaterItemsToOtherPage extends ProcessAdminActions {
                 'required' => true
             ),
             array(
-                'name' => 'appendOverwrite',
-                'label' => 'Append or Overwrite',
-                'description' => 'Should the items be appended to existing items, or overwrite?',
+                'name' => 'appendReset',
+                'label' => 'Append or Reset',
+                'description' => 'Should the items be appended to existing items, or should all existing items be removed?',
                 'type' => 'radios',
                 'required' => true,
                 'options' => array(
                     'append' => 'Append',
-                    'overwrite' => 'Overwrite'
+                    'reset' => 'Reset'
                 ),
                 'optionColumns' => 1,
-                'value' => 'append'
+                'value' => 'append',
             )
         );
     }
@@ -91,7 +91,7 @@ class CopyRepeaterItemsToOtherPage extends ProcessAdminActions {
         $sourcePage->of(false);
         $destinationPage->of(false);
 
-        if($options['appendOverwrite'] == 'overwrite') {
+        if($options['appendReset'] == 'reset') {
             $destinationPage->$repeaterFieldName->removeAll();
             $destinationPage->save($repeaterFieldName);
         }
@@ -103,21 +103,9 @@ class CopyRepeaterItemsToOtherPage extends ProcessAdminActions {
             $repeaterItems = $sourcePage->$repeaterFieldName;
         }
 
+        $newRepeaterParent = $this->wire->pages->get("name=for-page-".$destinationPage);
         foreach($repeaterItems as $item) {
-            $repeaterItemClone = $destinationPage->$repeaterFieldName->getNew();
-            $repeaterItemClone->save();
-
-            foreach($this->wire('fields')->get($repeaterFieldName)->repeaterFields as $subfield) {
-                $subFieldName = $this->wire('fields')->get($subfield)->name;
-                $repeaterItemClone->$subFieldName = $item->$subFieldName;
-            }
-
-            if(PagefilesManager::hasFiles($item)) {
-                $repeaterItemClone->filesManager->init($repeaterItemClone);
-                $item->filesManager->copyFiles($repeaterItemClone->filesManager->path());
-            }
-
-            $repeaterItemClone->save();
+            $this->wire->pages->clone($item, $newRepeaterParent);
         }
 
         $this->successMessage = 'The contents of the ' . $repeaterFieldName . ' field were successfully copied from the ' . $sourcePage->path . ' page to the ' . $destinationPage->path . ' page.';
