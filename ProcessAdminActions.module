@@ -23,7 +23,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'version' => '0.7.8',
             'singular' => true,
             'autoload' => false,
-            'icon'     => 'cog',
+            'icon'     => 'wrench',
             'useNavJSON' => true,
             'page' => array(
                 'name' => 'admin-actions',
