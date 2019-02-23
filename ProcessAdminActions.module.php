@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.7.8',
+            'version' => '0.7.9',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'wrench',
@@ -861,7 +861,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                 $fm = $this->wire('modules')->get("InputfieldCheckbox");
                 $fm->attr('name', 'menu_'.$info['name']);
                 $fm->skipLabel = Inputfield::skipLabelHeader;
-                $fm->label2 = ' ';
+                $fm->label = ' ';
                 $fm->attr('checked', isset($data[$actionType][$info['name']]['menu']) && $data[$actionType][$info['name']]['menu'] == '1' ? 'checked' : '' );
                 $menuWrapper->add($fm);
                 $siteActions = isset($data['site']) ? $data['site'] : array();
