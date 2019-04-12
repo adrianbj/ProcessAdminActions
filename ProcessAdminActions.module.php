@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.7.9',
+            'version' => '0.7.10',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'wrench',
@@ -295,7 +295,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                 $backup->setDatabase($this->wire('database'));
                 $backup->setDatabaseConfig($this->wire('config'));
 
-                $success = $backup->restore($this->adminActionsCacheDir.$this->dbBackupFilename);
+                $success = $backup->restore($this->adminActionsCacheDir.$this->dbBackupFilename, array('dropAll' => true));
                 if($success) {
                     $this->wire()->message("Database successfully restored.");
                 }
