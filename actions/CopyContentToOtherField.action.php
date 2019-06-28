@@ -23,7 +23,7 @@ class CopyContentToOtherField extends ProcessAdminActions {
                 'description' => 'Choose the template of the pages to copy the field',
                 'type' => 'select',
                 'required' => true,
-                'options' => $this->wire('templates')->find("sort=name, flags!=".Template::flagSystem)->getArray()
+                'options' => $this->wire('templates')->find("sort=name,pageClass=''|RepeaterPage|RepeaterMatrixPage")->getArray()
             ),
             array(
                 'name' => 'sourceField',
