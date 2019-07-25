@@ -210,6 +210,9 @@ class PageTableToRepeaterMatrix extends ProcessAdminActions {
             $repeaterField->columnWidth = $pageTableField->columnWidth;
             $repeaterField->required = $pageTableField->required;
             $repeaterField->requiredIf = $pageTableField->requiredIf;
+            $repeaterField->repeaterCollapse = 0;
+            $repeaterField->repeaterLoading = 1;
+            $repeaterField->collapsed = 0;
 
             //add the subfields to the repeaterFields setting
             if($repeaterType == 'FieldtypeRepeaterMatrix') {
@@ -219,6 +222,7 @@ class PageTableToRepeaterMatrix extends ProcessAdminActions {
                     $repeaterField->{'matrix'.$id.'_label'} = $template['templateLabel'];
                     $repeaterField->{'matrix'.$id.'_head'} = "{matrix_label} [• {matrix_summary}]";
                     $repeaterField->{'matrix'.$id.'_fields'} = $template['fieldIds'];
+                    $repeaterField->{'matrix'.$id.'_sort'} = $id - 1;
                 }
             }
             else {
@@ -292,8 +296,11 @@ class PageTableToRepeaterMatrix extends ProcessAdminActions {
                     $repeaterPageParent->title = $p->name;
                     $repeaterPageParent->save();
 
+                    $items = [];
+                    $x = 0;
+
                     //move item pages from old Page Table parent to the new repeater page parent
-                    foreach($p->$newPageTableFieldName->find("sort=sort") as $item){
+                    foreach($p->$newPageTableFieldName->find("sort=-sort") as $item){
                         $item->of(false);
                         $item->parent = $repeaterPageParent;
                         $item->name = $this->getUniqueRepeaterPageName();
@@ -311,10 +318,17 @@ class PageTableToRepeaterMatrix extends ProcessAdminActions {
                         //TODO - this might need to be revised as it seems like a hack
                         $item->status = $item->status > 1 ? $item->status-1 : $item->status;
                         $item->save();
-                        $p->$repeaterFieldName->add($item);
+
+                        $item->sort = $x;
+                        $items[] = $item;
+                        $x++;
                     }
-                    //save the repeater field on the main page
-                    $p->save($repeaterFieldName);
+                    
+                    //add the items
+                    $p->{$repeaterName}->add($items);
+
+                    // save the repeater field on the main page
+                    $p->save($repeaterName);
                 }
 
                 $lastTemplateName = $p->template->name;
