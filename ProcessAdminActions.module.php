@@ -20,7 +20,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.7.11',
+            'version' => '0.7.12',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'wrench',
@@ -833,7 +833,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                 __('Title'),
                 __('Info'),
                 __('Roles'),
-                __('In&nbsp;Menu'),
+                sprintf(__('In%sMenu', __FILE__), '&nbsp;'),
                 __('Author')
             ));
 
