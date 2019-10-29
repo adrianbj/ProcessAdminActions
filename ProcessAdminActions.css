@@ -48,12 +48,18 @@ table.AdminDataList.adminactions td:nth-child(4), table.AdminDataList.adminactio
 }
 
 .adminActionsError {
-    background: #E92003;
+    background: #bc283d;
     color: #FFFFFF;
+}
+
+.adminActionsError a {
+    color: #FFFFFF;
+    text-decoration: underline;
 }
 
 .adminActionsWarning {
     background: #FFD15E;
+    color: #354b60;
 }
 
 .adminActionsSuccess {
