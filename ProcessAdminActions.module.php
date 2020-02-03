@@ -4,12 +4,8 @@
  * ProcessWire Admin Actions.
  * by Adrian Jones
  *
- * ProcessWire 3.x
- * Copyright (C) 2011 by Ryan Cramer
+ * Copyright (C) 2020 by Adrian Jones
  * Licensed under GNU/GPL v2, see LICENSE.TXT
- *
- * http://www.processwire.com
- * http://www.ryancramer.com
  *
  */
 
@@ -20,7 +16,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.7.13',
+            'version' => '0.8.0',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'wrench',
@@ -77,7 +73,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $options['items'] = array();
         $i=0;
         if($this->wire('user')->isSuperuser() || $this->wire('user')->hasPermission('admin-actions-restore')) {
-            $options['items'][$i]['id'] = 'restore/';
+            $options['items'][$i]['id'] = '#tab_restore';
             $options['items'][$i]['label'] = 'Restore';
             $options['items'][$i]['icon'] = 'reply';
             $i++;
@@ -161,6 +157,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         $form = $this->buildSelectForm();
 
+        $links = '';
         if($this->wire('user')->isSuperuser()) {
             $links = '<div id="links">';
             $links .= "<a href='" . $this->wire('config')->urls->admin . "module/edit?name=".$this."&collapse_info=1'><i class='fa fa-cog'></i> Settings</a>&nbsp;&nbsp;";
@@ -259,7 +256,9 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         // backup database before executing action
         if($this->dbBackup == 'automatic' || ($this->dbBackup == 'optional' && isset($form->get("dbBackup")->value) && (bool)$form->get("dbBackup")->value === true)) {
             $this->backupDb();
-            $restoreLink = '<br /><div class="adminActionsWarning"><p>If you find a problem with the changes, you can <a href="./restore/">restore</a> the entire database.</p></div>';
+            if($this->wire('user')->isSuperuser() || $this->wire('user')->hasPermission('admin-actions-restore')) {
+                $restoreLink = '<br /><div class="adminActionsWarning"><p>If you find a problem with the changes, you can <a href="./#tab_restore">restore</a> the entire database.</p></div>';
+            }
         }
         else {
             $restoreLink = '';
@@ -279,50 +278,6 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             return '<h2>' . $actionTitle . '</h2>' . ($this->action->failureMessage ? '<div class="adminActionsError"><p>' . $this->action->failureMessage . '</p></div>' : '') . $restoreLink . '<br /><br />' . $form->render();
         }
 
-    }
-
-
-    /**
-     * Executed when ./restore/ url for module is accessed
-     *
-     */
-    public function ___executeRestore() {
-
-        if($this->wire('user')->isSuperuser() || $this->wire('user')->hasPermission('admin-actions-restore')) {
-
-            if($this->wire('input')->post->restoreConfirm) {
-                $backup = new WireDatabaseBackup($this->adminActionsCacheDir);
-                $backup->setDatabase($this->wire('database'));
-                $backup->setDatabaseConfig($this->wire('config'));
-
-                $success = $backup->restore($this->adminActionsCacheDir.$this->dbBackupFilename, array('dropAll' => true));
-                if($success) {
-                    $this->wire()->message("Database successfully restored.");
-                }
-                else {
-                    $this->wire()->error("Sorry, there was a problem and the database could not be restored.");
-                }
-                $this->wire('session')->redirect('../');
-            }
-            else {
-                $form = $this->wire('modules')->get("InputfieldForm");
-                $form->name = 'restore';
-                $form->method = 'post';
-
-                $f = $this->wire('modules')->get("InputfieldSubmit");
-                $f->attr("id+name", "restoreConfirm");
-                $f->name = 'restoreConfirm';
-                $f->description = 'Restore entire site database to state before the last executed action at '.date("Y-m-d H:i:s T", filemtime($this->adminActionsCacheDir.$this->dbBackupFilename));
-                $f->notes = 'Warning, this may take a minute or two, and cannot be undone!';
-                $f->value = 'Restore';
-                $form->add($f);
-
-                return '<h2>Restore</h2>' . $form->render();
-            }
-        }
-        else {
-            return 'Sorry, you do not have permission to run the restore feature.';
-        }
     }
 
 
@@ -401,6 +356,47 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             $tab->add($f);
             $tabsWrapper->add($tab);
         }
+
+        if($this->wire('user')->isSuperuser() || $this->wire('user')->hasPermission('admin-actions-restore')) {
+
+            $tab = new InputfieldWrapper();
+            $tab->attr('id', 'tab_restore');
+            $tab->attr('title', 'Restore');
+            $tab->attr('class', 'WireTab');
+
+            if($this->wire('input')->post->restoreConfirm) {
+                $backup = new WireDatabaseBackup($this->adminActionsCacheDir);
+                $backup->setDatabase($this->wire('database'));
+                $backup->setDatabaseConfig($this->wire('config'));
+
+                $success = $backup->restore($this->adminActionsCacheDir.$this->dbBackupFilename, array('dropAll' => true));
+                if($success) {
+                    $this->wire()->message("Database successfully restored.");
+                }
+                else {
+                    $this->wire()->error("Sorry, there was a problem and the database could not be restored.");
+                }
+                $this->wire('session')->redirect('./');
+            }
+            else {
+                $restore = $this->wire('modules')->get("InputfieldForm");
+                $restore->name = 'restore';
+                $restore->label = 'Restore';
+                $restore->method = 'post';
+
+                $f = $this->wire('modules')->get("InputfieldSubmit");
+                $f->attr("id+name", "restoreConfirm");
+                $f->name = 'restoreConfirm';
+                $f->description = 'Restore entire site database to state before the last executed action at '.date("Y-m-d H:i:s T", filemtime($this->adminActionsCacheDir.$this->dbBackupFilename));
+                $f->notes = 'Warning, this may take a minute or two, and cannot be undone!';
+                $f->value = 'Restore';
+                $restore->add($f);
+
+                $tab->add($restore);
+                $tabsWrapper->add($tab);
+            }
+        }
+
         $form->add($tabsWrapper);
 
 
