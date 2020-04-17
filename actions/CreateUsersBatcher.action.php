@@ -65,7 +65,7 @@ class CreateUsersBatcher extends ProcessAdminActions {
 
             if(substr($newUsers, -1) != "\r" && substr($newUsers, -1) != "\n") $newUsers .= PHP_EOL;
 
-            require_once __DIR__ . '/libraries/parsecsv.lib.php';
+            require_once __DIR__ . '/libraries/parsecsv-for-php/parsecsv.lib.php';
 
             $userPagesArray = new parseCSV();
             $userPagesArray->encoding('UTF-16', 'UTF-8');

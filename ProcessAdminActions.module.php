@@ -16,7 +16,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.8.0',
+            'version' => '0.8.1',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'wrench',
@@ -254,7 +254,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         }
 
         // backup database before executing action
-        if($this->dbBackup == 'automatic' || ($this->dbBackup == 'optional' && isset($form->get("dbBackup")->value) && (bool)$form->get("dbBackup")->value === true)) {
+        if($this->dbBackup == 'automatic' || ($this->dbBackup == 'optional' && $form->get("dbBackup")->value && (bool)$form->get("dbBackup")->value === true)) {
             $this->backupDb();
             if($this->wire('user')->isSuperuser() || $this->wire('user')->hasPermission('admin-actions-restore')) {
                 $restoreLink = '<br /><div class="adminActionsWarning"><p>If you find a problem with the changes, you can <a href="./#tab_restore">restore</a> the entire database.</p></div>';
@@ -342,7 +342,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             foreach($actionsList as $action => $info) {
                 if($this->getActionPath($action) && isset($info['roles']) && count(array_intersect($info['roles'], $this->wire('user')->roles->each("id"))) !== 0) {
                     $row = array(
-                        '<p><strong><a href="./options?action='.$action.'">'.(isset($info['icon']) && $info['icon'] != '' ? '<i class="fa fa-'.$info['icon'].'"></i> ' : '').$this->getActionTitle($action, $info).'</a></strong></p>',
+                        '<p><strong><a data-path="'.$this->getActionPath($action).'" href="./options?action='.$action.'">'.(isset($info['icon']) && $info['icon'] != '' ? '<i class="fa fa-'.$info['icon'].'"></i> ' : '').$this->getActionTitle($action, $info).'</a></strong></p>',
                         isset($info['description']) && $info['description'] != '' ? $info['description'] : '',
                         isset($info['notes']) && $info['notes'] != '' ? '<span class="notes">'.$info['notes'].'</span>' : '',
                     );
@@ -357,7 +357,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             $tabsWrapper->add($tab);
         }
 
-        if($this->wire('user')->isSuperuser() || $this->wire('user')->hasPermission('admin-actions-restore')) {
+        if(file_exists($this->adminActionsCacheDir.$this->dbBackupFilename) && ($this->wire('user')->isSuperuser() || $this->wire('user')->hasPermission('admin-actions-restore'))) {
 
             $tab = new InputfieldWrapper();
             $tab->attr('id', 'tab_restore');

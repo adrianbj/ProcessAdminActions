@@ -24,7 +24,14 @@ class FieldSetOrSearchAndReplace extends ProcessAdminActions {
             if(count($field->getFieldgroups()) !== 0) $fieldOptions[$field->id] = $field->label ? $field->name . ' (' . $field->label . ')' : $field->name;
         }
 
-        return array(
+        if($this->wire('languages')) {
+            $languageOptions = array();
+            foreach($this->wire('languages') as $lang) {
+                $languageOptions[$lang->id] = $lang->title ? $lang->name . ' (' . $lang->title . ')' : $lang->name;
+            }
+        }
+
+        $options = array(
             array(
                 'name' => 'selector',
                 'label' => 'Selector',
@@ -38,8 +45,23 @@ class FieldSetOrSearchAndReplace extends ProcessAdminActions {
                 'description' => 'Choose the field(s) whose values you want to set, or search and replace.',
                 'notes' => 'If none defined, it will use all text based fields.',
                 'type' => 'AsmSelect',
+                'columnWidth' => 50,
                 'options' => $fieldOptions
-            ),
+            )
+        );
+        if($this->wire('languages')) {
+            array_push($options,
+                array(
+                    'name' => 'languages',
+                    'label' => 'Languages',
+                    'description' => 'Choose the language(s) whose values you want to set, or search and replace.',
+                    'type' => 'Checkboxes',
+                    'columnWidth' => 50,
+                    'options' => $languageOptions
+                )
+            );
+        }
+        array_push($options,
             array(
                 'name' => 'search',
                 'label' => 'Search',
@@ -47,7 +69,9 @@ class FieldSetOrSearchAndReplace extends ProcessAdminActions {
                 'notes' => 'You can use plain text (str_replace), or a regex (starting and ending with "/") (preg_replace). Whatever is matched here will be replaced by the content of the "Set or Replace" field.',
                 'type' => 'text',
                 'columnWidth' => 50
-            ),
+            )
+        );
+        array_push($options,
             array(
                 'name' => 'setOrReplace',
                 'label' => 'Set Or Replace',
@@ -58,6 +82,8 @@ class FieldSetOrSearchAndReplace extends ProcessAdminActions {
                 'required' => true
             )
         );
+
+        return $options;
     }
 
 
@@ -82,30 +108,63 @@ class FieldSetOrSearchAndReplace extends ProcessAdminActions {
             foreach($fieldOptions as $field) {
                 $fieldName = $this->wire('fields')->get((int)$field)->name;
                 if(!$p->template->hasField($fieldName)) continue;
-                if($options['search'] != '') {
-                    // an array indicates multi-value fields, like Profields Textareas
-                    // TODO - need to expand this for other fields
-                    if(is_array($p->$fieldName->data)) {
-                        foreach($p->$fieldName->data as $k => $v) {
+
+                if(!$this->wire('languages')) {
+                    // dummy language to make foreach valid
+                    $options['languages'] = array('none');
+                }
+
+                foreach($options['languages'] as $lang) {
+                    if($options['search'] != '') {
+                        // an array indicates multi-value fields, like Profields Textareas
+                        // TODO - need to expand this for other fields
+                        if(is_array($p->$fieldName->data)) {
+                            foreach($p->getFormatted($fieldName)->data as $k => $v) {
+                                if($options['search'][0] === '/' && $options['search'][strlen($options['search'])-1] === '/') {
+                                    if($lang == 'none') {
+                                        $p->$fieldName->$k = preg_replace($options['search'], $options['setOrReplace'], $p->$fieldName->$k);
+                                    }
+                                    else {
+                                        $p->$fieldName->setLanguageValue($lang, $k, preg_replace($options['search'], $options['setOrReplace'], $p->getUnformatted($fieldName)->getLanguageValue($lang, $k)));
+                                    }
+                                }
+                                else {
+                                    if($lang == 'none') {
+                                        $p->$fieldName->$k = str_replace($options['search'], $options['setOrReplace'], $p->$fieldName->$k);
+                                    }
+                                    else {
+                                        $p->$fieldName->setLanguageValue($lang, $k, str_replace($options['search'], $options['setOrReplace'], $p->getUnformatted($fieldName)->getLanguageValue($lang, $k)));
+                                    }
+                                }
+                            }
+                        }
+                        else {
                             if($options['search'][0] === '/' && $options['search'][strlen($options['search'])-1] === '/') {
-                                $p->$fieldName->$k = preg_replace($options['search'], $options['setOrReplace'], $p->$fieldName->$k);
+                                if($lang == 'none') {
+                                    $p->$fieldName = preg_replace($options['search'], $options['setOrReplace'], $p->$fieldName);
+                                }
+                                else {
+                                    $p->setLanguageValue($lang, $fieldName, preg_replace($options['search'], $options['setOrReplace'], $p->getLanguageValue($lang, $fieldName)));
+                                }
                             }
                             else {
-                                $p->$fieldName->$k = str_replace($options['search'], $options['setOrReplace'], $p->$fieldName->$k);
+                                if($lang == 'none') {
+                                    $p->$fieldName = str_replace($options['search'], $options['setOrReplace'], $p->$fieldName);
+                                }
+                                else {
+                                    $p->setLanguageValue($lang, $fieldName, str_replace($options['search'], $options['setOrReplace'], $p->getLanguageValue($lang, $fieldName)));
+                                }
                             }
                         }
                     }
                     else {
-                        if($options['search'][0] === '/' && $options['search'][strlen($options['search'])-1] === '/') {
-                            $p->$fieldName = preg_replace($options['search'], $options['setOrReplace'], $p->$fieldName);
+                        if($lang == 'none') {
+                            $p->$fieldName = $options['setOrReplace'];
                         }
                         else {
-                            $p->$fieldName = str_replace($options['search'], $options['setOrReplace'], $p->$fieldName);
+                            $p->setLanguageValue($lang, $fieldName, $options['setOrReplace']);
                         }
                     }
-                }
-                else {
-                    $p->$fieldName = $options['setOrReplace'];
                 }
                 $p->save($fieldName);
             }
