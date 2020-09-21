@@ -68,7 +68,17 @@ class FieldSetOrSearchAndReplace extends ProcessAdminActions {
                 'description' => 'Enter text to search for',
                 'notes' => 'You can use plain text (str_replace), or a regex (starting and ending with "/") (preg_replace). Whatever is matched here will be replaced by the content of the "Set or Replace" field.',
                 'type' => 'text',
-                'columnWidth' => 50
+                'columnWidth' => 40
+            )
+        );
+        array_push($options,
+            array(
+                'name' => 'regex',
+                'label' => 'Regex',
+                'description' => 'Use Regex',
+                'type' => 'checkbox',
+                'notes' => 'Use preg_replace instead of str_replace',
+                'columnWidth' => 20
             )
         );
         array_push($options,
@@ -78,7 +88,7 @@ class FieldSetOrSearchAndReplace extends ProcessAdminActions {
                 'description' => 'Enter text to set or replace',
                 'notes' => 'If no "search" value is defined, this will simply set the value, completely overwriting any existing content.',
                 'type' => 'text',
-                'columnWidth' => 50,
+                'columnWidth' => 40,
                 'required' => true
             )
         );
@@ -116,15 +126,16 @@ class FieldSetOrSearchAndReplace extends ProcessAdminActions {
 
                 foreach($options['languages'] as $lang) {
                     if($options['search'] != '') {
+                        bd($options['regex']);
                         // an array indicates multi-value fields, like Profields Textareas
                         // TODO - need to expand this for other fields
-                        if(is_array($p->$fieldName->data)) {
+                        if(is_object($p->$fieldName) && is_array($p->$fieldName->data)) {
                             foreach($p->getFormatted($fieldName)->data as $k => $v) {
-                                if($options['search'][0] === '/' && $options['search'][strlen($options['search'])-1] === '/') {
+                                if($options['regex'] === 1) {
                                     if($lang == 'none') {
                                         $p->$fieldName->$k = preg_replace($options['search'], $options['setOrReplace'], $p->$fieldName->$k);
                                     }
-                                    else {
+                                    elseif(method_exists($p->getUnformatted($fieldName), 'getLanguageValue')) {
                                         $p->$fieldName->setLanguageValue($lang, $k, preg_replace($options['search'], $options['setOrReplace'], $p->getUnformatted($fieldName)->getLanguageValue($lang, $k)));
                                     }
                                 }
@@ -132,7 +143,7 @@ class FieldSetOrSearchAndReplace extends ProcessAdminActions {
                                     if($lang == 'none') {
                                         $p->$fieldName->$k = str_replace($options['search'], $options['setOrReplace'], $p->$fieldName->$k);
                                     }
-                                    else {
+                                    elseif(method_exists($p->getUnformatted($fieldName), 'getLanguageValue')) {
                                         $p->$fieldName->setLanguageValue($lang, $k, str_replace($options['search'], $options['setOrReplace'], $p->getUnformatted($fieldName)->getLanguageValue($lang, $k)));
                                     }
                                 }
