@@ -126,7 +126,6 @@ class FieldSetOrSearchAndReplace extends ProcessAdminActions {
 
                 foreach($options['languages'] as $lang) {
                     if($options['search'] != '') {
-                        bd($options['regex']);
                         // an array indicates multi-value fields, like Profields Textareas
                         // TODO - need to expand this for other fields
                         if(is_object($p->$fieldName) && is_array($p->$fieldName->data)) {
