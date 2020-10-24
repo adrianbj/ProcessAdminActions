@@ -1,4 +1,4 @@
-# Admin Actions #
+# Admin Actions
 
 Processwire module for running various admin actions
 
@@ -13,6 +13,9 @@ Admin Actions lets you quickly create actions in the admin that you can use over
 ### Included Actions
 
 It comes bundled with a several actions and I will be adding more over time (and hopefully I'll get some PRs from you guys too). You can browse and sort and filter based on the content of all columns.
+
+**Convert Fields to Multi-Language**
+Converts fields to their matching multi-language fieldtype.
 
 **Copy Content To Other Field**
 This action copies the content from one field to another field on all pages that use the selected template.
