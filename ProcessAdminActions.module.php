@@ -196,10 +196,10 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
     }
 
     /**
-     * Executed when ./execute/ url for module is accessed
+     * Executed when ./run/ url for module is accessed
      *
      */
-    public function ___executeExecute() {
+    public function ___executeRun() {
 
         set_time_limit(0);
 
@@ -434,7 +434,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $form = $this->wire('modules')->get("InputfieldForm");
         $form->name = 'options';
         $form->method = 'post';
-        $form->action = './execute?action='.$this->action;
+        $form->action = './run?action='.$this->action;
 
         $f = $this->wire('modules')->get("InputfieldMarkup");
         $f->name = 'details';

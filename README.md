@@ -193,9 +193,9 @@ http://mysite.dev/processwire/setup/admin-actions/options?action=TemplateFieldsB
 ```
 or you can execute immediately:
 ```
-http://mysite.dev/processwire/setup/admin-actions/execute?action=TemplateFieldsBatcher&templates=29|56&fields=219&addOrRemove=add
+http://mysite.dev/processwire/setup/admin-actions/run?action=TemplateFieldsBatcher&templates=29|56&fields=219&addOrRemove=add
 ```
-Note the "options" vs "execute" as the last path segment before the parameters.
+Note the "options" vs "run" as the last path segment before the parameters.
 
 ### Calling an action via the API
 
