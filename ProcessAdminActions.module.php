@@ -16,7 +16,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.8.3',
+            'version' => '0.8.4',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'wrench',
@@ -896,7 +896,10 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         // if we have redirected from Setup > Admin Actions to install the new actions
         // then redirect back to this page now that we have saved the config data
-        if($this->wire('input')->get->install == 1) $this->wire('session')->redirect($this->processPageUrl.'?installed='.$this->newActionsAvailable);
+        if($this->wire('input')->get->install == 1) {
+            $this->wire->warnings('clear');
+            $this->wire('session')->redirect($this->processPageUrl.'?installed='.$this->newActionsAvailable);
+        }
 
         // modify what is stored when settings saved so we can have the multidimensional array of data
         $this->wire('modules')->addHookBefore('saveModuleConfigData', null, function($event) use ($allData) {

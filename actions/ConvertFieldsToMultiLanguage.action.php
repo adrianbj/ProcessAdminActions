@@ -65,7 +65,8 @@ class ConvertFieldsToMultiLanguage extends ProcessAdminActions {
 
         ksort($fieldsByType);
         $typeNum = count($fieldsByType);
-        $lastType = array_pop(array_keys($fieldsByType));
+        $fieldsByTypeKeys = array_keys($fieldsByType);
+        $lastType = array_pop($fieldsByTypeKeys);
 
         foreach ($fieldsByType as $type => $options) {
             $newType = $this->getFieldtypeLanguageVersion($type);
