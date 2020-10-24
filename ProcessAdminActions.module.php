@@ -280,6 +280,17 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
     }
 
+    /**
+     * Executed when legacy ./execute/ url for module is accessed
+     *
+     */
+    public function ___executeExecute() {
+
+        // "execute" is not in use anymore: renamed to "run" to prevent firewall blocking
+        // we'll pass through calls to the new method for legacy installs with possibly hardcoded urls
+        return $this->___executeRun();
+
+    }
 
     /**
      * Build the Select form
