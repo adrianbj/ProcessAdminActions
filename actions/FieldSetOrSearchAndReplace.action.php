@@ -45,7 +45,7 @@ class FieldSetOrSearchAndReplace extends ProcessAdminActions {
                 'description' => 'Choose the field(s) whose values you want to set, or search and replace.',
                 'notes' => 'If none defined, it will use all text based fields.',
                 'type' => 'AsmSelect',
-                'columnWidth' => 50,
+                'columnWidth' => ($this->wire('languages') ? 50 : 100),
                 'options' => $fieldOptions
             )
         );
@@ -88,8 +88,7 @@ class FieldSetOrSearchAndReplace extends ProcessAdminActions {
                 'description' => 'Enter text to set or replace',
                 'notes' => 'If no "search" value is defined, this will simply set the value, completely overwriting any existing content.',
                 'type' => 'text',
-                'columnWidth' => 40,
-                'required' => true
+                'columnWidth' => 40
             )
         );
 
