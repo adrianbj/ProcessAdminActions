@@ -2,8 +2,8 @@
 
 class CopyRepeaterItemsToOtherPage extends ProcessAdminActions {
 
-    protected $title = 'Copy Repeater Items to Other Page';
-    protected $description = 'Add the items from a Repeater/RepeaterMatrix field on one page to the same field on another page.';
+    protected $title = 'Copy or Move Repeater Items to Other Page';
+    protected $description = 'Add the items from a Repeater/RepeaterMatrix field on one page to the same field on another page and optionally remove them from the original page.';
     protected $notes = 'If the field on the destination page already has items, you can choose to append, or overwrite.';
     protected $author = 'Adrian Jones';
     protected $authorLinks = array(
@@ -12,7 +12,7 @@ class CopyRepeaterItemsToOtherPage extends ProcessAdminActions {
         'github' => 'adrianbj',
     );
 
-    protected $executeButtonLabel = 'Copy Repeater Items';
+    protected $executeButtonLabel = 'Copy / Move Repeater Items';
     protected $icon = 'copy';
 
     protected function checkRequirements() {
@@ -55,6 +55,19 @@ class CopyRepeaterItemsToOtherPage extends ProcessAdminActions {
                 'description' => 'The destination page for the contents of the repeater field',
                 'type' => 'pageListSelect',
                 'required' => true
+            ),
+            array(
+                'name' => 'copyMove',
+                'label' => 'Copy or Move',
+                'description' => 'Should the items be copied or moved (deleted from the source page)?',
+                'type' => 'radios',
+                'required' => true,
+                'options' => array(
+                    'copy' => 'Copy',
+                    'move' => 'Move'
+                ),
+                'optionColumns' => 1,
+                'value' => 'copy'
             ),
             array(
                 'name' => 'appendOverwrite',
@@ -118,9 +131,15 @@ class CopyRepeaterItemsToOtherPage extends ProcessAdminActions {
             }
 
             $repeaterItemClone->save();
+
+            if($options['copyMove'] == 'move') {
+                $sourcePage->$repeaterFieldName->remove($item);
+                $sourcePage->save($repeaterFieldName);
+            }
+
         }
 
-        $this->successMessage = 'The contents of the ' . $repeaterFieldName . ' field were successfully copied from the ' . $sourcePage->path . ' page to the ' . $destinationPage->path . ' page.';
+        $this->successMessage = 'The contents of the ' . $repeaterFieldName . ' field were successfully ' . ($options['copyMove'] == 'move' ? 'moved' : 'copied') . ' from the ' . $sourcePage->path . ' page to the ' . $destinationPage->path . ' page.';
         return true;
 
     }
