@@ -57,7 +57,7 @@ class CopyContentToOtherField extends ProcessAdminActions {
             $p->save($destinationFieldName);
         }
 
-        $this->successMessage = 'The contents of the "' . $sourceFieldName . '" field were successfully copied from the "' . $destinationFieldName . '" field on all pages with the "' . $templateName . '" template.';
+        $this->successMessage = 'The contents of the "' . $sourceFieldName . '" field were successfully copied to the "' . $destinationFieldName . '" field on all pages with the "' . $templateName . '" template.';
         return true;
 
     }
