@@ -49,19 +49,20 @@ class ConvertFieldsToMultiLanguage extends ProcessAdminActions {
             if ($field->flags & Field::flagSystem) $label = "{$label} ⚠ {$labels->system}";
             if ($field->flags & Field::flagPermanent) $label = "{$label} ⚠ {$labels->permanent}";
 
-            $fieldsByType[$type] = $fieldsByType[$type] ?? [];
+            $fieldsByType[$type] = isset($fieldsByType[$type]) ? $fieldsByType[$type] : array();
+
             $fieldsByType[$type][$field->id] = $label;
         }
 
-        $optionFields = [
-            [
+        $optionFields = array(
+            array(
                 'name' => "keepSettings",
                 'label' => "Keep field settings?",
                 'description' => "Check this box to retain any custom field settings (from the Details and Input tabs). This is desirable for similar field types, but it can also result in unnecessary or redundant configuration data taking up space in the field. You can always analyze this later from: Edit Field > Advanced > Check field data.",
                 'type' => 'checkbox',
                 'checked' => 1,
-            ]
-        ];
+            )
+        );
 
         ksort($fieldsByType);
         $typeNum = count($fieldsByType);
@@ -72,14 +73,14 @@ class ConvertFieldsToMultiLanguage extends ProcessAdminActions {
             $newType = $this->getFieldtypeLanguageVersion($type);
             $even = $typeNum % 2 === 0;
             $last = $type == $lastType;
-            $optionFields[] = [
+            $optionFields[] = array(
                 'name' => "fields__{$type}",
                 'label' => "Fields: {$type}",
                 'description' => "Select the fields to convert to **{$newType}**.",
                 'columnWidth' => ($even || !$last) ? 50 : 100,
                 'type' => 'checkboxes',
                 'options' => $options,
-            ];
+            );
         }
 
         return $optionFields;
@@ -92,7 +93,7 @@ class ConvertFieldsToMultiLanguage extends ProcessAdminActions {
             return strpos($key, 'fields__') === 0;
         }, ARRAY_FILTER_USE_KEY);
 
-        $keepSettings = $options['keepSettings'] ?? true;
+        $keepSettings = isset($options['keepSettings']) ? $options['keepSettings'] : true;
 
         foreach ($typeOptions as $type => $fields) {
             $type = str_replace('fields__', '', $type);
