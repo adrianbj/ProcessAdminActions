@@ -44,7 +44,7 @@ class FtpFilesToPage extends ProcessAdminActions {
                 'description' => 'Choose the field that you want the files added to',
                 'type' => 'select',
                 'required' => true,
-                'options' => $this->wire('fields')->find("type=FieldtypeFile|FieldtypeImage")->getArray()
+                'options' => $this->wire('fields')->find("type=FieldtypeFile|FieldtypeImage|FieldtypeVideo")->getArray()
             ),
             array(
                 'name' => 'destinationPage',
