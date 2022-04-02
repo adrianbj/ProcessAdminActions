@@ -16,7 +16,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.8.10',
+            'version' => '0.8.11',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'wrench',
@@ -699,7 +699,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $siteActionsDir = isset($this->actions['site']) ? $this->actions['site'] : array();
         $siteActionsDB = isset($this->data['site']) ? $this->data['site'] : array();
         $totalCount = count($siteActionsDir) + count($this->actions['core']);
-        $installedCount = count($siteActionsDB) + count($this->data['core']);
+        $installedCount = count($siteActionsDB) + count($this->data['core'] ?: array());
         if($totalCount > $installedCount) {
             return $totalCount - $installedCount;
         }
