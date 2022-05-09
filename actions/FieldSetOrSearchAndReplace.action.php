@@ -20,7 +20,7 @@ class FieldSetOrSearchAndReplace extends ProcessAdminActions {
 
         $fieldOptions = array();
         foreach($this->wire('fields') as $field) {
-            if (!$field->type instanceof FieldtypeText) continue;
+            if (!$field->type instanceof FieldtypeText && !$field->type instanceof FieldtypeFloat && !$field->type instanceof FieldtypeDecimal && !$field->type instanceof FieldtypeInteger) continue;
             if(count($field->getFieldgroups()) !== 0) $fieldOptions[$field->id] = $field->label ? $field->name . ' (' . $field->label . ')' : $field->name;
         }
 
