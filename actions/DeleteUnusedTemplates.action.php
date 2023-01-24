@@ -42,7 +42,7 @@ class DeleteUnusedTemplates extends ProcessAdminActions {
             $this->wire('templates')->delete($template);
             $templateName = $template->name;
             $fieldgroup = $this->wire('fieldgroups')->get($templateName);
-            $this->wire('fieldgroups')->delete($fieldgroup);
+            if($fieldgroup) $this->wire('fieldgroups')->delete($fieldgroup);
         }
         $count = count($options['templates']);
         $this->successMessage = $count . ' template' . _n('', 's', $count) . ' ' . _n('was', 'were', $count) . ' successfully deleted';
