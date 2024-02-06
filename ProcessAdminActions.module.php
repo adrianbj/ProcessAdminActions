@@ -1,10 +1,10 @@
-<?php
+<?php namespace ProcessWire;
 
 /**
  * ProcessWire Admin Actions.
  * by Adrian Jones
  *
- * Copyright (C) 2020 by Adrian Jones
+ * Copyright (C) 2024 by Adrian Jones
  * Licensed under GNU/GPL v2, see LICENSE.TXT
  *
  */
@@ -16,7 +16,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.8.13',
+            'version' => '0.9.0',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'wrench',
@@ -133,10 +133,11 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $this->getActionTypes();
 
         if($this->wire('input')->get->action) {
-            if(isset($this->actionTypes[$this->wire('input')->get->action]) && count(array_intersect($this->data[$this->actionTypes[$this->wire('input')->get->action]][$this->wire('input')->get->action]['roles'], $this->wire('user')->roles->each("id"))) !== 0) {
-                require_once $this->getActionPath($this->wire('input')->get->action);
-                $actionName = $this->wire('input')->get->action;
-                $this->action = new $actionName;
+            $actionName = $this->wire('input')->get->action;
+            if(isset($this->actionTypes[$actionName]) && count(array_intersect($this->data[$this->actionTypes[$actionName]][$actionName]['roles'], $this->wire('user')->roles->each("id"))) !== 0) {
+                require_once $this->getActionPath($actionName);
+                $nsClass = 'ProcessWire\\'.$actionName;
+                $this->action = new $nsClass();
                 $this->hasPermission = true;
                 $this->addHookAfter('Process::breadcrumb', $this, 'modifyBreadcrumb');
             }
@@ -544,7 +545,8 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                 $className = $matches[1];
                 if($instantiate) {
                     require_once $this->getActionPath($className);
-                    $action = new $className;
+                    $nsClass = 'ProcessWire\\'.$actionName;
+                    $action = new $nsClass();
                     $this->actions[$actionType][$className]['title'] = $action->title ?: $this->getInfoFieldValues($className, 'title');
                     $this->actions[$actionType][$className]['description'] = $action->description ?: $this->getInfoFieldValues($className, 'summary');
                     $this->actions[$actionType][$className]['notes'] = $action->notes ?: $this->getInfoFieldValues($className, 'notes');
@@ -738,7 +740,8 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $actionFilePath = $this->getActionPath($method);
         if(!file_exists($actionFilePath)) return parent::__call($method, $args);
         require_once $actionFilePath;
-        $this->action = new $method;
+        $nsClass = 'ProcessWire\\'.$method;
+        $this->action = new $nsClass();
         $this->action->executeAction($args[0]);
         if(array_key_exists('dbBackup', $args[0])) $this->backupDb();
     }
