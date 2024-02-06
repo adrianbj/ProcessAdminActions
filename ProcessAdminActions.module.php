@@ -136,7 +136,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             $actionName = $this->wire('input')->get->action;
             if(isset($this->actionTypes[$actionName]) && count(array_intersect($this->data[$this->actionTypes[$actionName]][$actionName]['roles'], $this->wire('user')->roles->each("id"))) !== 0) {
                 require_once $this->getActionPath($actionName);
-                $nsClass = 'ProcessWire\\'.$actionName;
+                $nsClass = __NAMESPACE__ . '\\' . $actionName;
                 $this->action = new $nsClass();
                 $this->hasPermission = true;
                 $this->addHookAfter('Process::breadcrumb', $this, 'modifyBreadcrumb');
@@ -545,7 +545,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                 $className = $matches[1];
                 if($instantiate) {
                     require_once $this->getActionPath($className);
-                    $nsClass = 'ProcessWire\\'.$actionName;
+                    $nsClass = __NAMESPACE__ . '\\' . $className;
                     $action = new $nsClass();
                     $this->actions[$actionType][$className]['title'] = $action->title ?: $this->getInfoFieldValues($className, 'title');
                     $this->actions[$actionType][$className]['description'] = $action->description ?: $this->getInfoFieldValues($className, 'summary');
@@ -740,7 +740,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $actionFilePath = $this->getActionPath($method);
         if(!file_exists($actionFilePath)) return parent::__call($method, $args);
         require_once $actionFilePath;
-        $nsClass = 'ProcessWire\\'.$method;
+        $nsClass = __NAMESPACE__ . '\\' . $method;
         $this->action = new $nsClass();
         $this->action->executeAction($args[0]);
         if(array_key_exists('dbBackup', $args[0])) $this->backupDb();
