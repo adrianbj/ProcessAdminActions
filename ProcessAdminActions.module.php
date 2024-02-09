@@ -113,16 +113,16 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
     }
 
 
-   /**
+    /**
      * Default configuration for module
      *
      */
     static public function getDefaultData() {
-            return array(
-                // intentionally blank
-                // this method is required by ProcessWire, but we don't use it for this module
-                // because defaults are saved as multidimensional JSON on install
-            );
+        return array(
+            // intentionally blank
+            // this method is required by ProcessWire, but we don't use it for this module
+            // because defaults are saved as multidimensional JSON on install
+        );
     }
 
 
@@ -136,8 +136,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             $actionName = $this->wire('input')->get->action;
             if(isset($this->actionTypes[$actionName]) && count(array_intersect($this->data[$this->actionTypes[$actionName]][$actionName]['roles'], $this->wire('user')->roles->each("id"))) !== 0) {
                 require_once $this->getActionPath($actionName);
-                $nsClass = __NAMESPACE__ . '\\' . $actionName;
-                $this->action = new $nsClass();
+                $this->action = new $actionName();
                 $this->hasPermission = true;
                 $this->addHookAfter('Process::breadcrumb', $this, 'modifyBreadcrumb');
             }
@@ -496,26 +495,33 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         return $form;
     }
 
-
     private function getActionPath($className) {
-        if(file_exists($actionPath = __DIR__ . '/actions/'.$className.'.action.php')) {
-            return $actionPath;
+        $config = $this->wire()->config;
+		$files = $this->wire()->files;
+        $dir = $config->paths->$this;
+        $actionPath = false;
+        if(file_exists($path = $dir . 'actions/'.$className.'.action.php')) {
+            $actionPath = $path;
         }
-        elseif(file_exists($actionPath = __DIR__ . '/actions/'.$className.'/'.$className.'.action.php')) {
-            return $actionPath;
+        elseif(file_exists($path = $dir . 'actions/'.$className.'/'.$className.'.action.php')) {
+            $actionPath = $path;
         }
-        elseif(file_exists($actionPath = $this->wire('config')->paths->templates.'AdminActions/'.$className.'.action.php')) {
-            return $actionPath;
+        elseif(file_exists($path = $config->paths->templates.'AdminActions/'.$className.'.action.php')) {
+            $actionPath = $path;
         }
-        elseif(file_exists($actionPath = $this->wire('config')->paths->templates.'AdminActions/'.$className.'/'.$className.'.action.php')) {
-            return $actionPath;
+        elseif(file_exists($path = $config->paths->templates.'AdminActions/'.$className.'/'.$className.'.action.php')) {
+            $actionPath = $path;
         }
         elseif($this->wire('modules')->isInstalled('AdminActions'.$className)) {
-            return $this->wire('config')->paths->siteModules . 'AdminActions' . $className.'/'.$className.'.action.php';
+            $actionPath = $config->paths->siteModules . 'AdminActions' . $className.'/'.$className.'.action.php';
         }
-        else {
-            return false;
+        if($actionPath) {
+            $ns = $files->getNamespace($actionPath);
+            if($ns === '\\') {
+                $actionPath = $files->compile($actionPath);
+            }
         }
+        return $actionPath;
     }
 
 
@@ -529,7 +535,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             $this->getActions($this->wire('config')->paths->siteModules . $action . '/', $instantiate);
         }
         // get core actions from this module's action subfolder
-        $this->getActions(__DIR__ . '/actions/', $instantiate);
+        $this->getActions($this->wire()->config->paths->$this . 'actions/', $instantiate);
     }
 
 
@@ -545,8 +551,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                 $className = $matches[1];
                 if($instantiate) {
                     require_once $this->getActionPath($className);
-                    $nsClass = __NAMESPACE__ . '\\' . $className;
-                    $action = new $nsClass();
+                    $action = new $className();
                     $this->actions[$actionType][$className]['title'] = $action->title ?: $this->getInfoFieldValues($className, 'title');
                     $this->actions[$actionType][$className]['description'] = $action->description ?: $this->getInfoFieldValues($className, 'summary');
                     $this->actions[$actionType][$className]['notes'] = $action->notes ?: $this->getInfoFieldValues($className, 'notes');
@@ -740,18 +745,17 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $actionFilePath = $this->getActionPath($method);
         if(!file_exists($actionFilePath)) return parent::__call($method, $args);
         require_once $actionFilePath;
-        $nsClass = __NAMESPACE__ . '\\' . $method;
-        $this->action = new $nsClass();
+        $this->action = new $method();
         $this->action->executeAction($args[0]);
         if(array_key_exists('dbBackup', $args[0])) $this->backupDb();
     }
 
 
     /**
-     * Return an InputfieldsWrapper of Inputfields used to configure the class
+     * Return an InputfieldWrapper of Inputfields used to configure the class
      *
      * @param array $data Array of config values indexed by field name
-     * @return InputfieldsWrapper
+     * @return InputfieldWrapper
      *
      */
     public function getModuleConfigInputfields(array $data) {
