@@ -135,8 +135,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         if($this->wire('input')->get->action) {
             $actionName = $this->wire('input')->get->action;
             if(isset($this->actionTypes[$actionName]) && count(array_intersect($this->data[$this->actionTypes[$actionName]][$actionName]['roles'], $this->wire('user')->roles->each("id"))) !== 0) {
-                require_once $this->getActionPath($actionName);
-                $this->action = new $actionName();
+                $this->includeAndInstantiate($actionName);
                 $this->hasPermission = true;
                 $this->addHookAfter('Process::breadcrumb', $this, 'modifyBreadcrumb');
             }
@@ -495,33 +494,42 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         return $form;
     }
 
-    private function getActionPath($className) {
-        $config = $this->wire()->config;
-		$files = $this->wire()->files;
+    private function getActionPath($actionName) {
+        $config = $this->wire('config');
+		$files = $this->wire('files');
         $dir = $config->paths->$this;
         $actionPath = false;
-        if(file_exists($path = $dir . 'actions/'.$className.'.action.php')) {
+        if(file_exists($path = $dir . 'actions/'.$actionName.'.action.php')) {
             $actionPath = $path;
         }
-        elseif(file_exists($path = $dir . 'actions/'.$className.'/'.$className.'.action.php')) {
+        elseif(file_exists($path = $dir . 'actions/'.$actionName.'/'.$actionName.'.action.php')) {
             $actionPath = $path;
         }
-        elseif(file_exists($path = $config->paths->templates.'AdminActions/'.$className.'.action.php')) {
+        elseif(file_exists($path = $config->paths->templates.'AdminActions/'.$actionName.'.action.php')) {
             $actionPath = $path;
         }
-        elseif(file_exists($path = $config->paths->templates.'AdminActions/'.$className.'/'.$className.'.action.php')) {
+        elseif(file_exists($path = $config->paths->templates.'AdminActions/'.$actionName.'/'.$actionName.'.action.php')) {
             $actionPath = $path;
         }
-        elseif($this->wire('modules')->isInstalled('AdminActions'.$className)) {
-            $actionPath = $config->paths->siteModules . 'AdminActions' . $className.'/'.$className.'.action.php';
+        elseif($this->wire('modules')->isInstalled('AdminActions'.$actionName)) {
+            $actionPath = $config->paths->siteModules . 'AdminActions' . $actionName.'/'.$actionName.'.action.php';
         }
-        if($actionPath) {
-            $ns = $files->getNamespace($actionPath);
-            if($ns === '\\') {
-                $actionPath = $files->compile($actionPath);
-            }
-        }
+
         return $actionPath;
+    }
+
+    private function includeAndInstantiate($actionName) {
+        $actionPath = $this->getActionPath($actionName);
+        $ns = $this->wire('files')->getNamespace($actionPath);
+        if($ns !== 'ProcessWire') {
+            $actionPath = str_replace($this->wire('config')->paths->root, $this->wire('config')->paths->cache . 'FileCompiler/', $actionPath);
+            $nsClass = '\\' . $actionName;
+        }
+        else {
+            $nsClass = $ns . '\\' . $actionName;
+        }
+        $this->wire('files')->include($actionPath);
+        $this->action = new $nsClass();
     }
 
 
@@ -548,26 +556,25 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                 $basename = $file->getBasename();
                 if(!strpos($basename, '.action')) continue;
                 if(!preg_match('/^([A-Z][a-zA-Z0-9_]+)\.action\.php$/', $basename, $matches)) continue;
-                $className = $matches[1];
+                $actionName = $matches[1];
                 if($instantiate) {
-                    require_once $this->getActionPath($className);
-                    $action = new $className();
-                    $this->actions[$actionType][$className]['title'] = $action->title ?: $this->getInfoFieldValues($className, 'title');
-                    $this->actions[$actionType][$className]['description'] = $action->description ?: $this->getInfoFieldValues($className, 'summary');
-                    $this->actions[$actionType][$className]['notes'] = $action->notes ?: $this->getInfoFieldValues($className, 'notes');
-                    $this->actions[$actionType][$className]['icon'] = $action->icon ?: $this->getInfoFieldValues($className, 'icon');
-                    $this->actions[$actionType][$className]['author'] = $action->author ?: $this->getInfoFieldValues($className, 'author');
-                    $this->actions[$actionType][$className]['authorLinks'] = $action->authorLinks;
+                    $this->includeAndInstantiate($actionName);
+                    $this->actions[$actionType][$actionName]['title'] = $this->action->title ?: $this->getInfoFieldValues($actionName, 'title');
+                    $this->actions[$actionType][$actionName]['description'] = $this->action->description ?: $this->getInfoFieldValues($actionName, 'summary');
+                    $this->actions[$actionType][$actionName]['notes'] = $this->action->notes ?: $this->getInfoFieldValues($actionName, 'notes');
+                    $this->actions[$actionType][$actionName]['icon'] = $this->action->icon ?: $this->getInfoFieldValues($actionName, 'icon');
+                    $this->actions[$actionType][$actionName]['author'] = $this->action->author ?: $this->getInfoFieldValues($actionName, 'author');
+                    $this->actions[$actionType][$actionName]['authorLinks'] = $this->action->authorLinks;
                 }
-                $this->actions[$actionType][$className]['name'] = $className;
-                $this->actionTypes[$className] = $actionType;
+                $this->actions[$actionType][$actionName]['name'] = $actionName;
+                $this->actionTypes[$actionName] = $actionType;
             }
         }
     }
 
-    private function getInfoFieldValues($className, $fieldName) {
-        if($this->wire('modules')->isInstalled('AdminActions'.$className)) {
-            $actionModuleInfo = $this->wire('modules')->getModuleInfoVerbose('AdminActions'.$className);
+    private function getInfoFieldValues($actionName, $fieldName) {
+        if($this->wire('modules')->isInstalled('AdminActions'.$actionName)) {
+            $actionModuleInfo = $this->wire('modules')->getModuleInfoVerbose('AdminActions'.$actionName);
             if($fieldName == 'title') {
                 return str_replace(array('Admin Actions ', 'Admin Action '), '', $actionModuleInfo[$fieldName]);
             }
@@ -631,12 +638,12 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
     }
 
 
-    private function getActionTitle($className, $info = null) {
+    private function getActionTitle($actionName, $info = null) {
         if($info && isset($info['title'])) {
             $title = $info['title'];
         }
         else {
-            $title = preg_replace('/(?<=\\w)(?=[A-Z])/'," $1", $className);
+            $title = preg_replace('/(?<=\\w)(?=[A-Z])/'," $1", $actionName);
         }
         return $title;
     }
@@ -741,11 +748,10 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
     }
 
 
-    public function __call($method, $args) {
-        $actionFilePath = $this->getActionPath($method);
-        if(!file_exists($actionFilePath)) return parent::__call($method, $args);
-        require_once $actionFilePath;
-        $this->action = new $method();
+    public function __call($actionName, $args) {
+        $actionFilePath = $this->getActionPath($actionName);
+        if(!file_exists($actionFilePath)) return parent::__call($actionName, $args);
+        $this->includeAndInstantiate($actionName);
         $this->action->executeAction($args[0]);
         if(array_key_exists('dbBackup', $args[0])) $this->backupDb();
     }
