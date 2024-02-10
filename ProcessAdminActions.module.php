@@ -521,7 +521,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
     private function includeAndInstantiate($actionName) {
         $actionPath = $this->getActionPath($actionName);
         $ns = $this->wire('files')->getNamespace($actionPath);
-        if($ns !== 'ProcessWire') {
+        if($ns === '\\') {
             $actionPath = str_replace($this->wire('config')->paths->root, $this->wire('config')->paths->cache . 'FileCompiler/', $actionPath);
             $nsClass = '\\' . $actionName;
         }
