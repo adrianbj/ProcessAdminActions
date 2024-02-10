@@ -1,4 +1,4 @@
-<?php
+<?php namespace ProcessWire;
 
 class FtpFilesToPage extends ProcessAdminActions {
 
