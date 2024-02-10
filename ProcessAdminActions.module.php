@@ -521,6 +521,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
     private function includeAndInstantiate($actionName) {
         $actionPath = $this->getActionPath($actionName);
         $ns = $this->wire('files')->getNamespace($actionPath);
+        // if the action is in the root namespace, then we need to compile it
         if($ns === '\\') {
             $actionPath = $this->wire('files')->compile($actionPath);
             $nsClass = '\\' . $actionName;
@@ -528,7 +529,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         else {
             $nsClass = $ns . '\\' . $actionName;
         }
-        $this->wire('files')->include($actionPath);
+        $this->wire('files')->includeOnce($actionPath);
         $this->action = new $nsClass();
     }
 

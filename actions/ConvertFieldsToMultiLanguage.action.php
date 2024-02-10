@@ -1,4 +1,4 @@
-<?php
+<?php namespace ProcessWire;
 
 class ConvertFieldsToMultiLanguage extends ProcessAdminActions {
 

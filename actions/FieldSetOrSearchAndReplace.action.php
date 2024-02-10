@@ -1,5 +1,4 @@
-<?php
-// this action is not ready for use yet, which is why the filename doesn't have ".action" in it, so it won't be installed
+<?php namespace ProcessWire;
 
 class FieldSetOrSearchAndReplace extends ProcessAdminActions {
 
