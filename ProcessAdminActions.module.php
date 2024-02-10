@@ -522,7 +522,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $actionPath = $this->getActionPath($actionName);
         $ns = $this->wire('files')->getNamespace($actionPath);
         if($ns === '\\') {
-            $actionPath = str_replace($this->wire('config')->paths->root, $this->wire('config')->paths->cache . 'FileCompiler/', $actionPath);
+            $actionPath = $this->wire('files')->compile($actionPath);
             $nsClass = '\\' . $actionName;
         }
         else {
