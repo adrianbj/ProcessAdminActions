@@ -16,7 +16,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.9.0',
+            'version' => '0.9.1',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'wrench',
@@ -523,6 +523,13 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $ns = $this->wire('files')->getNamespace($actionPath);
         // if the action is in the root namespace, then we need to compile it
         if($ns === '\\') {
+            // silly dance to force the file to be recompiled and reload page to get the new version
+            $this->wire('cache')->delete('FileCompiler__'.md5($actionPath));
+            touch($actionPath);
+            $this->wire('cache')->save('AdminActions__'.$actionName, $this->wire('cache')->get('AdminActions__'.$actionName) + 1);
+            if($this->wire('cache')->get('AdminActions__'.$actionName) < 2) {
+                $this->wire('session')->redirect($this->wire('input')->url(true));
+            }
             $actionPath = $this->wire('files')->compile($actionPath);
             $nsClass = '\\' . $actionName;
         }
