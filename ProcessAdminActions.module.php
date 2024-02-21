@@ -16,7 +16,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.9.2',
+            'version' => '0.9.3',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'wrench',
@@ -532,7 +532,10 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             }
             $actionPath = $this->wire('files')->compile($actionPath);
             $nsClass = '\\' . $actionName;
-            if($this->wire('user')->isSuperuser()) $this->wire()->warning('You have actions without the ProcessWire namespace. They have been compiled for you, but please consider properly namespacing them.', Notice::noGroup);
+            if($this->wire('user')->isSuperuser()) {
+                $warning = sprintf($this->_('Action %s does not declare the ProcessWire namespace. It has been compiled for you, but please consider properly namespacing it.'), $actionName);
+                $this->wire()->warning($warning, Notice::noGroup);
+            }
         }
         else {
             $nsClass = $ns . '\\' . $actionName;
