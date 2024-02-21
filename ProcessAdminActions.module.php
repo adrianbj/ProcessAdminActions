@@ -16,7 +16,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.9.1',
+            'version' => '0.9.2',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'wrench',
@@ -312,7 +312,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             $this->wire('session')->redirect($this->wire('config')->urls->admin . "module/edit?name=" . $this . "&install=1");
         }
         elseif($this->wire('input')->get->installed) {
-            $this->wire()->warning($this->wire('input')->get->installed . " new " . _n('action was', 'actions were', $this->wire('input')->get->installed) . " installed. If you need to adjust role access and menu status, visit please visit the <a href='".$this->wire('config')->urls->admin . 'module/edit?name=' . $this . "'>module config settings</a>.", Notice::allowMarkup);
+            $this->wire()->warning($this->wire('input')->get->installed . " new " . _n('action was', 'actions were', $this->wire('input')->get->installed) . " installed. If you need to adjust role access and menu status, visit please visit the <a href='".$this->wire('config')->urls->admin . 'module/edit?name=' . $this . "'>module config settings</a>.", Notice::allowMarkup | Notice::noGroup);
         }
 
         if(isset($this->data['site'])) ksort($this->data['site']);
@@ -526,12 +526,13 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             // silly dance to force the file to be recompiled and reload page to get the new version
             $this->wire('cache')->delete('FileCompiler__'.md5($actionPath));
             touch($actionPath);
-            $this->wire('cache')->save('AdminActions__'.$actionName, $this->wire('cache')->get('AdminActions__'.$actionName) + 1);
+            $this->wire('cache')->save('AdminActions__'.$actionName, $this->wire('cache')->get('AdminActions__'.$actionName) + 1, WireCache::expireNever);
             if($this->wire('cache')->get('AdminActions__'.$actionName) < 2) {
                 $this->wire('session')->redirect($this->wire('input')->url(true));
             }
             $actionPath = $this->wire('files')->compile($actionPath);
             $nsClass = '\\' . $actionName;
+            if($this->wire('user')->isSuperuser()) $this->wire()->warning('You have actions without the ProcessWire namespace. They have been compiled for you, but please consider properly namespacing them.', Notice::noGroup);
         }
         else {
             $nsClass = $ns . '\\' . $actionName;
@@ -789,10 +790,10 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $this->getAllActions();
         if($this->wire('input')->get->install !== 1 && isset($this->data['core'])) {
             $this->newActionsAvailable = $this->newActionsAvailable();
-            if($this->newActionsAvailable) $this->wire()->warning("There are new actions available (highlighted in orange) - please adjust approved roles and menu status, and click Submit to save.");
+            if($this->newActionsAvailable) $this->wire()->warning("There are new actions available (highlighted in orange) - please adjust approved roles and menu status, and click Submit to save.", Notice::noGroup);
         }
         else {
-            $this->wire()->warning("Please check the roles and menu status for all the actions and adjust to your needs.");
+            $this->wire()->warning("Please check the roles and menu status for all the actions and adjust to your needs.", Notice::noGroup);
         }
 
         if(!array_key_exists('dbBackup', $data)) {

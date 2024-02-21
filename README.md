@@ -83,6 +83,8 @@ This is the entire contents needed in a file named AdminActionsMySharedAction.mo
 Once this module is installed on a site, AdminActions will detect it and allow users to configure and use it like any other action.
 
 ```
+<?php namespace ProcessWire;
+
 class AdminActionsMySharedAction extends WireData implements Module {
 
     public static function getModuleInfo() {
@@ -107,6 +109,8 @@ A good example of an installable action is @Toutouwai's [Unordered List to Pages
 A new action file can be as simple as this:
 
 ```
+<?php namespace ProcessWire;
+
 class UnpublishAboutPage extends ProcessAdminActions {
 
     protected function executeAction() {
@@ -129,6 +133,8 @@ As you can see there are only a few lines needed to wrap the actual API call, so
 Obviously that example action is not very useful. Here is another more useful one that is included with the module. It includes $description, $notes, and $author variables which are used in the module table selector interface. It also makes use of the defineOptions() method which builds the input fields used to gather the required options before running the action.
 
 ```
+<?php namespace ProcessWire;
+
 class DeleteUnusedFields extends ProcessAdminActions {
 
     protected $description = 'Deletes fields that are not used by any templates.';
@@ -240,4 +246,3 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 (See included LICENSE file for full license text.)
-
