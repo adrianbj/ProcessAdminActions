@@ -16,7 +16,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.9.3',
+            'version' => '0.9.4',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'wrench',
@@ -540,8 +540,11 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         else {
             $nsClass = $ns . '\\' . $actionName;
         }
-        $this->wire('files')->includeOnce($actionPath);
-        $this->action = new $nsClass();
+
+        if(!class_exists($nsClass)) {
+            $this->wire('files')->includeOnce($actionPath);
+            $this->action = new $nsClass();
+        }
     }
 
 
