@@ -67,7 +67,7 @@ class CreateUsersBatcher extends ProcessAdminActions {
 
             require_once __DIR__ . '/libraries/parsecsv-for-php/parsecsv.lib.php';
 
-            $userPagesArray = new parseCSV();
+            $userPagesArray = new \parseCSV();
             $userPagesArray->encoding('UTF-16', 'UTF-8');
             $userPagesArray->heading = false;
             $userPagesArray->delimiter = ',';
