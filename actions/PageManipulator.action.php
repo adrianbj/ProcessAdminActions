@@ -95,7 +95,7 @@ class PageManipulator extends ProcessAdminActions {
     protected function executeAction($options) {
 
         $count = 0;
-        foreach($this->wire('pages')->find($options['selector']) as $p) {
+        foreach($this->wire('pages')->find($options['selector'], array('allowCustom' => true)) as $p) {
             $p->of(false);
 
             if($options['remove'] === 'trash') $p->trash();

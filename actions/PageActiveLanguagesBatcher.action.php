@@ -69,7 +69,7 @@ class PageActiveLanguagesBatcher extends ProcessAdminActions {
 
     protected function executeAction($options) {
         $count = 0;
-        foreach($this->wire('pages')->find($options['selector']) as $p) {
+        foreach($this->wire('pages')->find($options['selector'], array('allowCustom' => true)) as $p) {
             foreach($this->wire('languages')->find("name!=default") as $language) {
                 $newLanguageStatus = $options['language'.$language->id];
                 if($newLanguageStatus !== 'nochange') $p->set("status".$language->id, $options['language'.$language->id]);

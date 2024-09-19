@@ -110,7 +110,7 @@ class EmailBatcher extends ProcessAdminActions {
             $emailField = 'email';
         }
         elseif($options['pages']) {
-            $recipients = $this->wire('pages')->find($options['pages']);
+            $recipients = $this->wire('pages')->find($options['pages'], array('allowCustom' => true));
             $emailField = $options['email'];
         }
 

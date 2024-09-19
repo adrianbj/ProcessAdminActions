@@ -99,7 +99,7 @@ class FieldSetOrSearchAndReplace extends ProcessAdminActions {
 
         $count = 0;
         $pageSelector = $options['selector'] ?: "has_parent!=".$this->wire('config')->adminRootPageID.",id!=".$this->wire('config')->adminRootPageID."|".$this->wire('config')->trashPageID.",status<".Page::statusTrash.",include=all";
-        foreach($this->wire('pages')->find($pageSelector) as $p) {
+        foreach($this->wire('pages')->find($pageSelector, array('allowCustom' => true)) as $p) {
             $p->of(false);
 
             if($options['fields']) {
