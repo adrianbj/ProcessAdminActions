@@ -11,6 +11,13 @@ class FieldSetOrSearchAndReplace extends ProcessAdminActions {
         'pwdirectory' => 'adrian-jones',
         'github' => 'adrianbj',
     );
+    protected $allowedTypes = array(
+        FieldtypeText::class,
+        FieldtypeFloat::class,
+        FieldtypeDecimal::class,
+        FieldtypeInteger::class,
+        FieldtypeOptions::class
+    );
 
     protected $executeButtonLabel = 'Set Field Values';
     protected $icon = 'search-plus';
@@ -19,7 +26,9 @@ class FieldSetOrSearchAndReplace extends ProcessAdminActions {
 
         $fieldOptions = array();
         foreach($this->wire('fields') as $field) {
-            if (!$field->type instanceof FieldtypeText && !$field->type instanceof FieldtypeFloat && !$field->type instanceof FieldtypeDecimal && !$field->type instanceof FieldtypeInteger) continue;
+            if (!array_reduce($this->allowedTypes, fn($carry, $type) => $carry || $field->type instanceof $type, false)) {
+                continue;
+            }
             if(count($field->getFieldgroups()) !== 0) $fieldOptions[$field->id] = $field->label ? $field->name . ' (' . $field->label . ')' : $field->name;
         }
 
@@ -108,7 +117,9 @@ class FieldSetOrSearchAndReplace extends ProcessAdminActions {
             else {
                 $fieldOptions = array();
                 foreach($this->wire('fields') as $field) {
-                    if (!$field->type instanceof FieldtypeText) continue;
+                    if (!array_reduce($this->allowedTypes, fn($carry, $type) => $carry || $field->type instanceof $type, false)) {
+                        continue;
+                    }
                     if($p->template->hasField($field)) $fieldOptions[] = $field->id;
                 }
             }
