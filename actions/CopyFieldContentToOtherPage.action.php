@@ -45,13 +45,22 @@ class CopyFieldContentToOtherPage extends ProcessAdminActions {
 
     protected function executeAction($options) {
 
-        $fieldName = $this->wire('fields')->get((int)$options['field'])->name;
+        $f = $this->wire('fields')->get((int)$options['field']);
+        $fieldName = $f->name;
         $sourcePage = $this->wire('pages')->get((int)$options['sourcePage']);
         $destinationPage = $this->wire('pages')->get((int)$options['destinationPage']);
 
         $sourcePage->of(false);
         $destinationPage->of(false);
-        $destinationPage->$fieldName = $sourcePage->$fieldName;
+
+        if($f->type instanceof FieldtypeFile) {
+            foreach($sourcePage->$fieldName as $file) {
+                $destinationPage->$fieldName->add($file->filename);
+            }
+        }
+        else {
+            $destinationPage->$fieldName = $sourcePage->$fieldName;
+        }
         $destinationPage->save($fieldName);
 
         $this->successMessage = 'The contents of the ' . $fieldName . ' field were successfully copied from the ' . $sourcePage->path . ' page to the ' . $destinationPage->path . ' page.';
