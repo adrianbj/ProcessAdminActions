@@ -323,18 +323,19 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         }
 
         // execute action and render output
+        $heading = $runId ? '' : '<h2>' . $actionTitle . '</h2>';
         if($this->action->executeAction($options) && !$form->getErrors()) {
-            $resultHtml = '<h2>' . $actionTitle . '</h2>' . $this->action->output . '<div class="adminActionsSuccess">' . ($this->action->successMessage == '' ? '<p>The '.$actionTitle.' action was completed successfully.</p>' : '<p>' . $this->action->successMessage . '</p>') . '</div>' . $restoreLink;
+            $resultHtml = $heading . $this->action->output . '<div class="adminActionsSuccess">' . ($this->action->successMessage == '' ? '<p>The '.$actionTitle.' action was completed successfully.</p>' : '<p>' . $this->action->successMessage . '</p>') . '</div>' . $restoreLink;
         }
         // execution errors so return the failure message and render the form again
         else {
             if($runId) {
                 // background mode: don't render the form (user can't interact with it via AJAX)
-                $resultHtml = '<h2>' . $actionTitle . '</h2>' . ($this->action->failureMessage ? '<div class="adminActionsError"><p>' . $this->action->failureMessage . '</p></div>' : '<div class="adminActionsError"><p>Sorry, the '.$actionTitle.' action could not be completed successfully.</p></div>') . $restoreLink;
+                $resultHtml = ($this->action->failureMessage ? '<div class="adminActionsError"><p>' . $this->action->failureMessage . '</p></div>' : '<div class="adminActionsError"><p>Sorry, the '.$actionTitle.' action could not be completed successfully.</p></div>') . $restoreLink;
             }
             else {
                 $this->wire()->error('Sorry, the '.$actionTitle.' action could not be completed successfully.');
-                $resultHtml = '<h2>' . $actionTitle . '</h2>' . ($this->action->failureMessage ? '<div class="adminActionsError"><p>' . $this->action->failureMessage . '</p></div>' : '') . $restoreLink . '<br /><br />' . $form->render();
+                $resultHtml = $heading . ($this->action->failureMessage ? '<div class="adminActionsError"><p>' . $this->action->failureMessage . '</p></div>' : '') . $restoreLink . '<br /><br />' . $form->render();
             }
         }
 
