@@ -33,7 +33,7 @@ $(document).ready(function(){
         formData.append('runId', runId);
 
         var $submitBtn = $form.find('button[type="submit"], input[type="submit"]');
-        var bgStartTime = null;
+        var startTime = Date.now();
         var bgTimer = null;
         var pollingActive = false;
         var pollDelivered = false;
@@ -46,14 +46,16 @@ $(document).ready(function(){
         $form.after($resultArea).after($status).hide();
         $submitBtn.prop('disabled', true);
 
-        function showElapsed() {
-            if(!bgStartTime) return;
-            var elapsed = Math.round((Date.now() - bgStartTime) / 1000);
+        // Always show elapsed time from the start
+        bgTimer = setInterval(function() {
+            if(inlineDelivered || pollDelivered) return;
+            var elapsed = Math.round((Date.now() - startTime) / 1000);
             var mins = Math.floor(elapsed / 60);
             var secs = elapsed % 60;
             var timeStr = mins > 0 ? mins + 'm ' + secs + 's' : secs + 's';
-            $status.html('<i class="fa fa-spinner fa-spin"></i> Running in background... ' + timeStr);
-        }
+            var label = pollingActive ? 'Running in background... ' : 'Running action... ';
+            $status.html('<i class="fa fa-spinner fa-spin"></i> ' + label + timeStr);
+        }, 1000);
 
         function displayResult(html) {
             $status.remove();
@@ -77,11 +79,8 @@ $(document).ready(function(){
             if(stopPolling) return;
 
             // Safety: stop after 1 hour
-            if(bgStartTime && (Date.now() - bgStartTime > 3600000)) {
-                if(bgTimer) { clearInterval(bgTimer); bgTimer = null; }
-                $status.html('<i class="fa fa-times"></i> Process appears to have been terminated by the server');
-                $submitBtn.prop('disabled', false);
-                $form.show();
+            if(startTime && (Date.now() - startTime > 3600000)) {
+                showError('Process appears to have been terminated by the server');
                 doCleanup(id, false);
                 return;
             }
@@ -104,9 +103,7 @@ $(document).ready(function(){
                         if(result && result.output) {
                             displayResult(result.output);
                         } else {
-                            $status.html('<i class="fa fa-times"></i> Error fetching results');
-                            $submitBtn.prop('disabled', false);
-                            $form.show();
+                            showError('Error fetching results');
                         }
                     });
                 },
@@ -118,11 +115,16 @@ $(document).ready(function(){
             });
         }
 
+        function showError(message) {
+            if(bgTimer) { clearInterval(bgTimer); bgTimer = null; }
+            $status.addClass('adminActionsRunError').html('<i class="fa fa-times-circle"></i> ' + message);
+            $submitBtn.prop('disabled', false);
+            $form.show();
+        }
+
         function startPolling() {
             if(pollingActive) return;
             pollingActive = true;
-            bgStartTime = Date.now();
-            bgTimer = setInterval(showElapsed, 1000);
             stopPolling = false;
             pollForResults(runId);
         }
@@ -147,7 +149,7 @@ $(document).ready(function(){
                 if(pollTimer) clearTimeout(pollTimer);
                 if(pollingActive && pollDelivered) return;
                 inlineDelivered = true;
-                if(pollingActive) { stopPolling = true; if(bgTimer) { clearInterval(bgTimer); bgTimer = null; } }
+                if(pollingActive) { stopPolling = true; }
 
                 if(typeof data === 'object' && data.output) {
                     displayResult(data.output);
@@ -160,6 +162,14 @@ $(document).ready(function(){
                 if(pollTimer) clearTimeout(pollTimer);
                 if(pollingActive && pollDelivered) return;
 
+                // Connection lost/aborted
+                if(xhr.status === 0) {
+                    if(!pollingActive) {
+                        showError('Connection lost');
+                    }
+                    return;
+                }
+
                 // Gateway timeout — switch to background polling
                 if(xhr.status === 502 || xhr.status === 504) {
                     inlineDelivered = false;
@@ -168,10 +178,7 @@ $(document).ready(function(){
                 }
 
                 inlineDelivered = true;
-                if(bgTimer) { clearInterval(bgTimer); bgTimer = null; }
-                $status.html('<i class="fa fa-times-circle"></i> Error: ' + xhr.status + ' ' + xhr.statusText);
-                $submitBtn.prop('disabled', false);
-                $form.show();
+                showError('Error: ' + xhr.status + ' ' + xhr.statusText);
             }
         });
     });

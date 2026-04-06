@@ -166,3 +166,9 @@ table.adminactionsconfig .asmListItem i:not(:hover) {
 #adminActionsRunStatus .fa {
     margin-right: 5px;
 }
+
+#adminActionsRunStatus.adminActionsRunError {
+    background: #bc283d;
+    border-color: #bc283d;
+    color: #fff;
+}

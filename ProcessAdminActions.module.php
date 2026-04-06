@@ -4,7 +4,7 @@
  * ProcessWire Admin Actions.
  * by Adrian Jones
  *
- * Copyright (C) 2024 by Adrian Jones
+ * Copyright (C) 2026 by Adrian Jones
  * Licensed under GNU/GPL v2, see LICENSE.TXT
  *
  */
@@ -16,7 +16,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '0.9.8',
+            'version' => '1.0.0',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'wrench',
@@ -50,6 +50,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
     protected $dbBackup;
     protected $noPermissionMessage = 'Sorry, you do not have permission to use this action.';
     protected $processPageUrl;
+    protected $newActionsCount = 0;
 
 
     /**
@@ -78,10 +79,11 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             $options['items'][$i]['icon'] = 'reply';
             $i++;
         }
+        $userRoleIds = $this->wire('user')->roles->each("id");
         foreach($this->data as $actionType => $actions) {
             if(is_array($actions)) {
                 foreach($actions as $action => $info) {
-                    if(isset($info['menu']) && $info['menu'] == '1' && isset($info['roles']) && count(array_intersect($info['roles'], $this->wire('user')->roles->each("id"))) !== 0) {
+                    if(isset($info['menu']) && $info['menu'] == '1' && isset($info['roles']) && count(array_intersect($info['roles'], $userRoleIds)) !== 0) {
                         $options['items'][$i]['id'] = 'options?action='.$action;
                         $options['items'][$i]['label'] = $this->getActionTitle($action, $info);
                         $options['items'][$i]['icon'] = isset($info['icon']) ? $info['icon'] : '';
@@ -134,7 +136,8 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         if($this->wire('input')->get->action) {
             $actionName = $this->wire('input')->get->action;
-            if(isset($this->actionTypes[$actionName]) && count(array_intersect($this->data[$this->actionTypes[$actionName]][$actionName]['roles'], $this->wire('user')->roles->each("id"))) !== 0) {
+            $userRoleIds = $this->wire('user')->roles->each("id");
+            if(isset($this->actionTypes[$actionName]) && isset($this->data[$this->actionTypes[$actionName]][$actionName]['roles']) && count(array_intersect($this->data[$this->actionTypes[$actionName]][$actionName]['roles'], $userRoleIds)) !== 0) {
                 $this->includeAndInstantiate($actionName);
                 $this->hasPermission = true;
                 $this->addHookAfter('Process::breadcrumb', $this, 'modifyBreadcrumb');
@@ -305,12 +308,14 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                     }
                 });
 
-                // Garbage collect old run files (older than 1 hour)
-                foreach(array($runStatusDir, $runCacheDir) as $runDir) {
-                    if(is_dir($runDir)) {
-                        foreach(new \DirectoryIterator($runDir) as $file) {
-                            if($file->isDot() || $file->getFilename() === '.htaccess') continue;
-                            if(time() - $file->getMTime() > 3600) @unlink($file->getPathname());
+                // Garbage collect old run files (older than 1 hour) — throttled to ~10% of requests
+                if(mt_rand(1, 10) === 1) {
+                    foreach(array($runStatusDir, $runCacheDir) as $runDir) {
+                        if(is_dir($runDir)) {
+                            foreach(new \DirectoryIterator($runDir) as $file) {
+                                if($file->isDot() || $file->getFilename() === '.htaccess') continue;
+                                if(time() - $file->getMTime() > 3600) @unlink($file->getPathname());
+                            }
                         }
                     }
                 }
@@ -323,8 +328,14 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         }
         // execution errors so return the failure message and render the form again
         else {
-            if(!$runId) $this->wire()->error('Sorry, the '.$actionTitle.' action could not be completed successfully.');
-            $resultHtml = '<h2>' . $actionTitle . '</h2>' . ($this->action->failureMessage ? '<div class="adminActionsError"><p>' . $this->action->failureMessage . '</p></div>' : '') . $restoreLink . '<br /><br />' . $form->render();
+            if($runId) {
+                // background mode: don't render the form (user can't interact with it via AJAX)
+                $resultHtml = '<h2>' . $actionTitle . '</h2>' . ($this->action->failureMessage ? '<div class="adminActionsError"><p>' . $this->action->failureMessage . '</p></div>' : '<div class="adminActionsError"><p>Sorry, the '.$actionTitle.' action could not be completed successfully.</p></div>') . $restoreLink;
+            }
+            else {
+                $this->wire()->error('Sorry, the '.$actionTitle.' action could not be completed successfully.');
+                $resultHtml = '<h2>' . $actionTitle . '</h2>' . ($this->action->failureMessage ? '<div class="adminActionsError"><p>' . $this->action->failureMessage . '</p></div>' : '') . $restoreLink . '<br /><br />' . $form->render();
+            }
         }
 
         // Write result to files and return JSON for background execution
@@ -358,6 +369,9 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
      * Fetches result from cache and cleans up run files
      */
     public function executeCleanup() {
+        if(!$this->wire('config')->ajax) {
+            throw new Wire404Exception();
+        }
         $runId = $this->wire('input')->post->runId;
         if(!$runId) {
             header('Content-Type: application/json');
@@ -406,13 +420,15 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             $this->wire('session')->redirect($this->wire('config')->urls->admin . "module/edit?name=" . $this . "&install=1");
         }
         elseif($this->wire('input')->get->installed) {
-            $this->wire()->warning($this->wire('input')->get->installed . " new " . _n('action was', 'actions were', $this->wire('input')->get->installed) . " installed. If you need to adjust role access and menu status, visit please visit the <a href='".$this->wire('config')->urls->admin . 'module/edit?name=' . $this . "'>module config settings</a>.", Notice::allowMarkup | Notice::noGroup);
+            $this->wire()->warning($this->wire('input')->get->installed . " new " . _n('action was', 'actions were', $this->wire('input')->get->installed) . " installed. If you need to adjust role access and menu status, please visit the <a href='".$this->wire('config')->urls->admin . 'module/edit?name=' . $this . "'>module config settings</a>.", Notice::allowMarkup | Notice::noGroup);
         }
 
         if(isset($this->data['site'])) ksort($this->data['site']);
-        ksort($this->data['core']);
+        if(isset($this->data['core'])) ksort($this->data['core']);
 
         $actionsCount=0;
+        $userRoleIds = $this->wire('user')->roles->each("id");
+        $actionPathCache = array();
         foreach($this->data as $actionType => $actionsList) {
 
             if(!is_array($actionsList)) continue;
@@ -420,7 +436,8 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             // if the user has no actions in this list (site or core) with permission for their role, then don't display the tab
             $hasTypePermission = false;
             foreach($actionsList as $action => $info) {
-                if($this->getActionPath($action) && isset($info['roles']) && count(array_intersect($info['roles'], $this->wire('user')->roles->each("id"))) !== 0) {
+                if(!isset($actionPathCache[$action])) $actionPathCache[$action] = $this->getActionPath($action);
+                if($actionPathCache[$action] && isset($info['roles']) && count(array_intersect($info['roles'], $userRoleIds)) !== 0) {
                     $hasTypePermission = true;
                 }
             }
@@ -444,9 +461,9 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             ));
 
             foreach($actionsList as $action => $info) {
-                if($this->getActionPath($action) && isset($info['roles']) && count(array_intersect($info['roles'], $this->wire('user')->roles->each("id"))) !== 0) {
+                if($actionPathCache[$action] && isset($info['roles']) && count(array_intersect($info['roles'], $userRoleIds)) !== 0) {
                     $row = array(
-                        '<p><strong><a data-path="'.$this->getActionPath($action).'" href="./options?action='.$action.'">'.(isset($info['icon']) && $info['icon'] != '' ? '<i class="fa fa-'.$info['icon'].'"></i> ' : '').$this->getActionTitle($action, $info).'</a></strong></p>',
+                        '<p><strong><a href="./options?action='.$action.'">'.(isset($info['icon']) && $info['icon'] != '' ? '<i class="fa fa-'.$info['icon'].'"></i> ' : '').$this->getActionTitle($action, $info).'</a></strong></p>',
                         isset($info['description']) && $info['description'] != '' ? $info['description'] : '',
                         isset($info['notes']) && $info['notes'] != '' ? '<span class="notes">'.$info['notes'].'</span>' : '',
                     );
@@ -556,7 +573,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             $f->label = 'Action Code';
             $f->description = 'This is the executeAction() method used by this action. This is just here as a reference in case you are curious what code is about to be executed.';
             $f->notes = 'The $options array contains the index (key) and value for each of the options defined below.';
-            $f->value = '<div id="actionCodeViewer">'.$this->getFunctionCode($this->getActionPath($this->wire('input')->get->action), 'executeAction').'</div>';
+            $f->value = '<div id="actionCodeViewer">'.htmlspecialchars($this->getFunctionCode($this->getActionPath($this->wire('input')->get->action), 'executeAction'), ENT_QUOTES, 'UTF-8').'</div>';
             $f->collapsed = Inputfield::collapsedYes;
             $form->add($f);
         }
@@ -590,7 +607,6 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
     private function getActionPath($actionName) {
         $config = $this->wire('config');
-		$files = $this->wire('files');
         $dir = $config->paths->$this;
         $actionPath = false;
         if(file_exists($path = $dir . 'actions/'.$actionName.'.action.php')) {
@@ -637,8 +653,8 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         if(!class_exists($nsClass)) {
             $this->wire('files')->includeOnce($actionPath);
-            $this->action = new $nsClass();
         }
+        $this->action = new $nsClass();
     }
 
 
@@ -663,7 +679,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             if($file->isFile()) {
                 $actionType = $this->wire('config')->paths->$this.'actions/' == $folderPath ? 'core' : 'site';
                 $basename = $file->getBasename();
-                if(!strpos($basename, '.action')) continue;
+                if(strpos($basename, '.action') === false) continue;
                 if(!preg_match('/^([A-Z][a-zA-Z0-9_]+)\.action\.php$/', $basename, $matches)) continue;
                 $actionName = $matches[1];
                 if($instantiate) {
@@ -821,8 +837,8 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
     private function newActionsAvailable() {
         $siteActionsDir = isset($this->actions['site']) ? $this->actions['site'] : array();
         $siteActionsDB = isset($this->data['site']) ? $this->data['site'] : array();
-        $totalCount = count($siteActionsDir) + count($this->actions['core']);
-        $installedCount = count($siteActionsDB) + count($this->data['core'] ?: array());
+        $totalCount = count($siteActionsDir) + (isset($this->actions['core']) ? count($this->actions['core']) : 0);
+        $installedCount = count($siteActionsDB) + (isset($this->data['core']) ? count($this->data['core']) : 0);
         if($totalCount > $installedCount) {
             return $totalCount - $installedCount;
         }
@@ -837,7 +853,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $backup = new WireDatabaseBackup($this->adminActionsCacheDir);
         $backup->setDatabase($this->wire('database'));
         $backup->setDatabaseConfig($this->wire('config'));
-        $file = $backup->backup(array('filename' => $this->dbBackupFilename));
+        $backup->backup(array('filename' => $this->dbBackupFilename));
 
         $restoreDbCode =
         "<?php\n" .
@@ -862,7 +878,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         if(!file_exists($actionFilePath)) return parent::__call($actionName, $args);
         $this->includeAndInstantiate($actionName);
         $this->action->executeAction($args[0]);
-        if(array_key_exists('dbBackup', $args[0])) $this->backupDb();
+        if(!empty($args[0]['dbBackup'])) $this->backupDb();
     }
 
 
@@ -888,9 +904,9 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         // get all actions and check to see if there are any new ones not in the module settings database
         $this->getAllActions();
-        if($this->wire('input')->get->install !== 1 && isset($this->data['core'])) {
-            $this->newActionsAvailable = $this->newActionsAvailable();
-            if($this->newActionsAvailable) $this->wire()->warning("There are new actions available (highlighted in orange) - please adjust approved roles and menu status, and click Submit to save.", Notice::noGroup);
+        if($this->wire('input')->get->install != 1 && isset($this->data['core'])) {
+            $this->newActionsCount = $this->newActionsAvailable();
+            if($this->newActionsCount) $this->wire()->warning("There are new actions available (highlighted in orange) - please adjust approved roles and menu status, and click Submit to save.", Notice::noGroup);
         }
         else {
             $this->wire()->warning("Please check the roles and menu status for all the actions and adjust to your needs.", Notice::noGroup);
@@ -1031,7 +1047,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         // then redirect back to this page now that we have saved the config data
         if($this->wire('input')->get->install == 1) {
             $this->wire->warnings('clear');
-            $this->wire('session')->redirect($this->processPageUrl.'?installed='.$this->newActionsAvailable);
+            $this->wire('session')->redirect($this->processPageUrl.'?installed='.$this->newActionsCount);
         }
 
         // modify what is stored when settings saved so we can have the multidimensional array of data
