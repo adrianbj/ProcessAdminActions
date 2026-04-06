@@ -152,3 +152,17 @@ table.adminactionsconfig .asmListItem i {
 table.adminactionsconfig .asmListItem i:not(:hover) {
     color: #EA2262;
 }
+
+/* Background execution status indicator */
+#adminActionsRunStatus {
+    padding: 15px;
+    margin: 10px 0;
+    background: #f0f0f0;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    font-size: 14px;
+}
+
+#adminActionsRunStatus .fa {
+    margin-right: 5px;
+}

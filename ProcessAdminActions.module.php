@@ -180,6 +180,13 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         if(!$this->hasPermission) return $this->noPermissionMessage;
 
+        // Pass background execution config to JS
+        $this->wire('config')->js('adminActions', array(
+            'maxExecutionTime' => (int) ini_get('max_execution_time'),
+            'pollUrl' => $this->wire('config')->urls->assets . 'AdminActions/runs/',
+            'cleanupUrl' => $this->processPageUrl . 'cleanup/',
+        ));
+
         $out = '<h2>'.$this->getActionTitle($this->wire('input')->get->action, $this->data[$this->actionTypes[$this->wire('input')->get->action]][$this->wire('input')->get->action]).'</h2>';
 
         if(method_exists($this->action,'checkRequirements') && !$this->action->checkRequirements()) {
@@ -253,29 +260,84 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         }
 
         // backup database before executing action
+        $restoreLink = '';
         if($this->dbBackup == 'automatic' || ($this->dbBackup == 'optional' && $form->get("dbBackup")->value && (bool)$form->get("dbBackup")->value === true)) {
             $this->backupDb();
             if($this->wire('user')->isSuperuser() || $this->wire('user')->hasPermission('admin-actions-restore')) {
-                $restoreLink = '<br /><div class="adminActionsWarning"><p>If you find a problem with the changes, you can <a href="./#tab_restore">restore</a> the entire database.</p></div>';
+                $restoreLink = '<br /><div class="adminActionsWarning"><p>If you find a problem with the changes, you can <a href="'.$this->processPageUrl.'#tab_restore">restore</a> the entire database.</p></div>';
             }
-        }
-        else {
-            $restoreLink = '';
         }
 
         // if form errors, render the form without executing it
         if($form->getErrors()) {
             return '<h2>' . $actionTitle . '</h2>' . $form->render();
         }
+
+        // Background execution support: if AJAX request with runId, make PHP resilient
+        // to connection drops so the action continues running even if the browser/proxy times out
+        $runId = '';
+        $runStatusDir = $this->wire('config')->paths->assets . 'AdminActions/runs/';
+        $runCacheDir = $this->wire('config')->paths->cache . 'AdminActions/runs/';
+        if($this->wire('config')->ajax && $this->wire('input')->post->runId) {
+            $runId = preg_replace('/[^a-zA-Z0-9_.]/', '', $this->wire('input')->post->runId);
+            if($runId) {
+                if(!is_dir($runStatusDir)) {
+                    wireMkdir($runStatusDir, true);
+                    file_put_contents($runStatusDir . '.htaccess', "Options -Indexes\n");
+                }
+                if(!is_dir($runCacheDir)) wireMkdir($runCacheDir, true);
+                file_put_contents($runStatusDir . $runId . '.json', json_encode(array('status' => 'running')));
+                ignore_user_abort(true);
+                session_write_close();
+
+                // Catch fatal errors during action execution
+                register_shutdown_function(function() use ($runId, $runStatusDir, $runCacheDir) {
+                    $statusFile = $runStatusDir . $runId . '.json';
+                    if(file_exists($statusFile)) {
+                        $status = json_decode(file_get_contents($statusFile), true);
+                        if(isset($status['status']) && $status['status'] === 'running') {
+                            $error = error_get_last();
+                            $errorMsg = $error ? htmlspecialchars($error['message'], ENT_QUOTES, 'UTF-8') : 'Unknown error';
+                            $result = array('status' => 'error', 'output' => '<div class="adminActionsError"><p>Fatal error: ' . $errorMsg . '</p></div>');
+                            file_put_contents($runCacheDir . $runId . '.json', json_encode($result));
+                            file_put_contents($statusFile, json_encode(array('status' => 'error')));
+                        }
+                    }
+                });
+
+                // Garbage collect old run files (older than 1 hour)
+                foreach(array($runStatusDir, $runCacheDir) as $runDir) {
+                    if(is_dir($runDir)) {
+                        foreach(new \DirectoryIterator($runDir) as $file) {
+                            if($file->isDot() || $file->getFilename() === '.htaccess') continue;
+                            if(time() - $file->getMTime() > 3600) @unlink($file->getPathname());
+                        }
+                    }
+                }
+            }
+        }
+
         // execute action and render output
-        elseif($this->action->executeAction($options) && !$form->getErrors()) {
-            return '<h2>' . $actionTitle . '</h2>' . $this->action->output . '<div class="adminActionsSuccess">' . ($this->action->successMessage == '' ? '<p>The '.$actionTitle.' action was completed successfully.</p>' : '<p>' . $this->action->successMessage . '</p>') . '</div>' . $restoreLink;
+        if($this->action->executeAction($options) && !$form->getErrors()) {
+            $resultHtml = '<h2>' . $actionTitle . '</h2>' . $this->action->output . '<div class="adminActionsSuccess">' . ($this->action->successMessage == '' ? '<p>The '.$actionTitle.' action was completed successfully.</p>' : '<p>' . $this->action->successMessage . '</p>') . '</div>' . $restoreLink;
         }
         // execution errors so return the failure message and render the form again
         else {
-            $this->wire()->error('Sorry, the '.$actionTitle.' action could not be completed successfully.');
-            return '<h2>' . $actionTitle . '</h2>' . ($this->action->failureMessage ? '<div class="adminActionsError"><p>' . $this->action->failureMessage . '</p></div>' : '') . $restoreLink . '<br /><br />' . $form->render();
+            if(!$runId) $this->wire()->error('Sorry, the '.$actionTitle.' action could not be completed successfully.');
+            $resultHtml = '<h2>' . $actionTitle . '</h2>' . ($this->action->failureMessage ? '<div class="adminActionsError"><p>' . $this->action->failureMessage . '</p></div>' : '') . $restoreLink . '<br /><br />' . $form->render();
         }
+
+        // Write result to files and return JSON for background execution
+        if($runId) {
+            $resultData = array('status' => 'complete', 'output' => $resultHtml);
+            file_put_contents($runCacheDir . $runId . '.json', json_encode($resultData));
+            file_put_contents($runStatusDir . $runId . '.json', json_encode(array('status' => 'complete')));
+            header('Content-Type: application/json');
+            echo json_encode($resultData);
+            exit;
+        }
+
+        return $resultHtml;
 
     }
 
@@ -289,6 +351,38 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         // we'll pass through calls to the new method for legacy installs with possibly hardcoded urls
         return $this->___executeRun();
 
+    }
+
+    /**
+     * Executed when ./cleanup/ url is accessed (background execution support)
+     * Fetches result from cache and cleans up run files
+     */
+    public function executeCleanup() {
+        $runId = $this->wire('input')->post->runId;
+        if(!$runId) {
+            header('Content-Type: application/json');
+            echo json_encode(array('status' => 'error', 'output' => 'Missing run ID'));
+            exit;
+        }
+        $runId = preg_replace('/[^a-zA-Z0-9_.]/', '', $runId);
+
+        $statusDir = $this->wire('config')->paths->assets . 'AdminActions/runs/';
+        $cacheDir = $this->wire('config')->paths->cache . 'AdminActions/runs/';
+        $cacheFile = $cacheDir . $runId . '.json';
+
+        header('Content-Type: application/json');
+
+        $returnResult = !empty($this->wire('input')->post->returnResult);
+        if($returnResult && file_exists($cacheFile)) {
+            echo file_get_contents($cacheFile);
+        }
+        elseif($returnResult) {
+            echo json_encode(array('status' => 'error', 'output' => 'Result file not found'));
+        }
+
+        @unlink($cacheFile);
+        @unlink($statusDir . $runId . '.json');
+        exit;
     }
 
     /**
