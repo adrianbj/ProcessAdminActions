@@ -86,7 +86,7 @@ $(document).ready(function(){
             }
 
             $.ajax({
-                url: pollUrl + encodeURIComponent(id) + '.json?' + Date.now(),
+                url: pollUrl + encodeURIComponent(id) + '.' + Date.now() + '.json',
                 method: 'GET',
                 dataType: 'json',
                 timeout: 10000,
@@ -162,10 +162,10 @@ $(document).ready(function(){
                 if(pollTimer) clearTimeout(pollTimer);
                 if(pollingActive && pollDelivered) return;
 
-                // Connection lost/aborted
+                // Connection lost/aborted — PHP may still be running, start polling
                 if(xhr.status === 0) {
                     if(!pollingActive) {
-                        showError('Connection lost');
+                        startPolling();
                     }
                     return;
                 }

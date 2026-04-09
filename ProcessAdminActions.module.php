@@ -286,7 +286,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             if($runId) {
                 if(!is_dir($runStatusDir)) {
                     wireMkdir($runStatusDir, true);
-                    file_put_contents($runStatusDir . '.htaccess', "Options -Indexes\n");
+                    file_put_contents($runStatusDir . '.htaccess', "Options -Indexes\n<IfModule mod_rewrite.c>\n    RewriteEngine On\n    RewriteRule ^(.+)\\.[0-9]+\\.json$ $1.json [L]\n</IfModule>\n<IfModule mod_headers.c>\n    Header set Cache-Control \"no-cache, no-store, must-revalidate\"\n</IfModule>\n");
                 }
                 if(!is_dir($runCacheDir)) wireMkdir($runCacheDir, true);
                 file_put_contents($runStatusDir . $runId . '.json', json_encode(array('status' => 'running')));
