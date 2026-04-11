@@ -292,7 +292,33 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                 file_put_contents($runStatusDir . $runId . '.json', json_encode(array('status' => 'running')));
                 ignore_user_abort(true);
                 session_write_close();
+                // Release TracyDebugger's FileSession lock if present — it holds LOCK_EX
+                // for the entire request and blocks other tabs sharing the tracy-session cookie
+                if(class_exists('Tracy\Debugger', false)) {
+                    $tracySessionStorage = \Tracy\Debugger::getSessionStorage();
+                    if($tracySessionStorage instanceof \Tracy\FileSession) {
+                        $ref = new \ReflectionProperty($tracySessionStorage, 'file');
+                        $fileHandle = $ref->getValue($tracySessionStorage);
+                        if(is_resource($fileHandle)) {
+                            flock($fileHandle, LOCK_UN);
+                        }
+                    }
+                }
 
+                // Error/exception handlers to write failures to run status files
+                $writeRunError = function($message) use ($runId, $runStatusDir, $runCacheDir) {
+                    $result = array('status' => 'error', 'output' => '<div class="adminActionsError"><p>' . $message . '</p></div>');
+                    file_put_contents($runCacheDir . $runId . '.json', json_encode($result));
+                    file_put_contents($runStatusDir . $runId . '.json', json_encode(array('status' => 'error')));
+                };
+                set_error_handler(function($errno, $errstr, $errfile, $errline) use ($writeRunError) {
+                    if(error_reporting() === 0) return true;
+                    $writeRunError(htmlspecialchars("Error: $errstr on line $errline in $errfile", ENT_QUOTES, 'UTF-8'));
+                    return false; // let PHP's default handler continue
+                });
+                set_exception_handler(function($e) use ($writeRunError) {
+                    $writeRunError(htmlspecialchars('Exception: ' . $e->getMessage() . ' on line ' . $e->getLine() . ' in ' . $e->getFile(), ENT_QUOTES, 'UTF-8'));
+                });
                 // Catch fatal errors during action execution
                 register_shutdown_function(function() use ($runId, $runStatusDir, $runCacheDir) {
                     $statusFile = $runStatusDir . $runId . '.json';
