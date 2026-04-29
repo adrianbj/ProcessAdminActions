@@ -336,6 +336,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
                 // Garbage collect old run files (older than 1 hour) — throttled to ~10% of requests
                 if(mt_rand(1, 10) === 1) {
+                    // Flat dirs: status/cache files keyed by runId
                     foreach(array($runStatusDir, $runCacheDir) as $runDir) {
                         if(is_dir($runDir)) {
                             foreach(new \DirectoryIterator($runDir) as $file) {
@@ -344,9 +345,34 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                             }
                         }
                     }
+                    // Nested dir: per-runId subdirectories holding download file + sidecar
+                    $downloadsDir = $this->wire('config')->paths->cache . 'AdminActions/downloads/';
+                    if(is_dir($downloadsDir)) {
+                        foreach(new \DirectoryIterator($downloadsDir) as $subdir) {
+                            if($subdir->isDot() || !$subdir->isDir()) continue;
+                            if(time() - $subdir->getMTime() > 3600) {
+                                $subdirPath = $subdir->getPathname();
+                                foreach(new \DirectoryIterator($subdirPath) as $f) {
+                                    if($f->isDot()) continue;
+                                    @unlink($f->getPathname());
+                                }
+                                @rmdir($subdirPath);
+                            }
+                        }
+                    }
                 }
+
+                // Install output buffer to capture file-download responses transparently.
+                // The callback runs at final flush (including via PHP shutdown after exit()).
+                ob_start(function($buffer, $phase) use ($runId, $runStatusDir, $runCacheDir) {
+                    return $this->handleOutputBuffer($buffer, $phase, $runId, $runStatusDir, $runCacheDir);
+                });
             }
         }
+
+        // Clear any prior PHP error so handleOutputBuffer's error_get_last() check
+        // only sees errors raised during the action itself.
+        error_clear_last();
 
         // execute action and render output
         $heading = $runId ? '' : '<h2>' . $actionTitle . '</h2>';
@@ -423,6 +449,53 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         @unlink($cacheFile);
         @unlink($statusDir . $runId . '.json');
+        exit;
+    }
+
+    /**
+     * Executed when ./download/ url for module is accessed.
+     * Streams a file captured by handleOutputBuffer back to the browser with
+     * the original Content-Type and Content-Disposition: attachment headers.
+     */
+    public function ___executeDownload() {
+        if(!$this->wire('user')->hasPermission('admin-actions')) {
+            throw new WirePermissionException('No permission');
+        }
+
+        $runId = preg_replace('/[^a-zA-Z0-9_.]/', '', $this->wire('input')->get->runId);
+        if(!$runId) throw new Wire404Exception();
+
+        $rawFilename = $this->wire('input')->get->filename;
+        if(!$rawFilename) throw new Wire404Exception();
+        $filename = basename($rawFilename);
+        if(!$filename || $filename === '.' || $filename === '..') throw new Wire404Exception();
+
+        $dir = $this->wire('config')->paths->cache . 'AdminActions/downloads/' . $runId . '/';
+        $path = $dir . $filename;
+        if(!file_exists($path)) throw new Wire404Exception();
+
+        $contentType = 'application/octet-stream';
+        $metaPath = $path . '.meta.json';
+        if(file_exists($metaPath)) {
+            $meta = json_decode(file_get_contents($metaPath), true);
+            if(is_array($meta) && isset($meta['contentType']) && is_string($meta['contentType'])) {
+                $contentType = $meta['contentType'];
+            }
+        }
+
+        // Disable PHP output buffering so readfile() streams directly.
+        while(ob_get_level()) ob_end_clean();
+
+        header('Content-Type: ' . $contentType);
+        header('Content-Disposition: attachment; filename="' . str_replace('"', '', $filename) . '"');
+        header('Content-Length: ' . filesize($path));
+        header('Cache-Control: no-store, no-cache, must-revalidate');
+        header('Pragma: no-cache');
+        @readfile($path);
+
+        @unlink($path);
+        @unlink($metaPath);
+        @rmdir($dir);
         exit;
     }
 
@@ -1102,6 +1175,121 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         });
 
         return $wrapper;
+    }
+
+    /**
+     * Find a header by name in the current outgoing headers list.
+     * Returns the trimmed value (everything after the first colon) or null.
+     */
+    private function findHeader($name) {
+        $prefix = strtolower($name) . ':';
+        $prefixLen = strlen($prefix);
+        foreach(headers_list() as $h) {
+            if(strncasecmp($h, $prefix, $prefixLen) === 0) {
+                return trim(substr($h, $prefixLen));
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Extract the filename from a Content-Disposition header value.
+     * Handles RFC 6266 quoted form (filename="...") and bare form (filename=...).
+     * Returns the basename (no path components) or null if no match.
+     */
+    private function parseFilenameFromDisposition($disposition) {
+        if(preg_match('/filename="([^"]+)"/i', $disposition, $m)) {
+            return basename($m[1]);
+        }
+        if(preg_match('/filename=([^;\s]+)/i', $disposition, $m)) {
+            return basename($m[1]);
+        }
+        return null;
+    }
+
+    /**
+     * Build a JSON error envelope for the AJAX/polling clients.
+     * Also rewrites response headers to application/json for the inline path.
+     */
+    private function errorEnvelope($message) {
+        header_remove('Content-Disposition');
+        header_remove('Content-Type');
+        header_remove('Content-Length');
+        header('Content-Type: application/json');
+        return json_encode(array(
+            'status' => 'error',
+            'output' => '<div class="adminActionsError"><p>' . htmlspecialchars($message, ENT_QUOTES, 'UTF-8') . '</p></div>'
+        ));
+    }
+
+    /**
+     * ob_start callback that detects file-download responses (Content-Disposition: attachment),
+     * captures the binary to disk under cache/AdminActions/downloads/<runId>/<filename>, and
+     * rewrites the buffer to a JSON {status:'download',...} envelope. Pass-through otherwise.
+     *
+     * Public so the closure in ___executeRun can invoke it via $this->handleOutputBuffer(...).
+     */
+    public function handleOutputBuffer($buffer, $phase, $runId, $runStatusDir, $runCacheDir) {
+        // Only act on the final flush
+        if(!($phase & PHP_OUTPUT_HANDLER_FINAL)) return $buffer;
+
+        // Out of scope: non-AJAX/non-runId requests use the legacy direct-output path
+        if(!$runId) return $buffer;
+
+        $disposition = $this->findHeader('Content-Disposition');
+        if(!$disposition || stripos($disposition, 'attachment') === false) {
+            return $buffer; // not a download — pass through
+        }
+
+        // If a fatal error occurred, drop the partial output and let the existing
+        // shutdown error envelope reach the client.
+        $lastError = error_get_last();
+        if($lastError && in_array($lastError['type'], array(E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR))) {
+            return $buffer;
+        }
+
+        $filename = $this->parseFilenameFromDisposition($disposition);
+        if(!$filename) $filename = 'download_' . $runId . '.bin';
+        $filename = basename($filename); // defense-in-depth
+        if(!$filename) $filename = 'download_' . $runId . '.bin';
+        $contentType = $this->findHeader('Content-Type');
+        if(!$contentType) $contentType = 'application/octet-stream';
+
+        $downloadsDir = $this->wire('config')->paths->cache . 'AdminActions/downloads/';
+        $dir = $downloadsDir . $runId . '/';
+        if(!is_dir($dir) && !wireMkdir($dir, true)) {
+            return $this->errorEnvelope('Failed to create download directory');
+        }
+        $path = $dir . $filename;
+        if(file_put_contents($path, $buffer) === false) {
+            return $this->errorEnvelope('Failed to write download file');
+        }
+        // Sidecar carrying the original Content-Type so the download endpoint
+        // can serve it back without trusting query parameters.
+        if(file_put_contents($path . '.meta.json', json_encode(array('contentType' => $contentType))) === false) {
+            $this->wire('log')->error('AdminActions: failed to write download sidecar at ' . $path . '.meta.json');
+        }
+
+        $envelope = array(
+            'status'      => 'download',
+            'url'         => $this->processPageUrl . 'download/?runId=' . urlencode($runId) . '&filename=' . urlencode($filename),
+            'filename'    => $filename,
+            'contentType' => $contentType,
+        );
+
+        // Write cache first, then flip status. Polling clients gate on status:
+        // status='running' → keep polling; status='complete' → fetch cache.
+        // Flipping status last guarantees the cache JSON exists when polling reads it.
+        // Shutdown handlers run after ob_start callbacks complete, so cannot race.
+        file_put_contents($runCacheDir . $runId . '.json', json_encode($envelope));
+        file_put_contents($runStatusDir . $runId . '.json', json_encode(array('status' => 'complete')));
+
+        // Rewrite the inline-AJAX response body and headers.
+        header_remove('Content-Disposition');
+        header_remove('Content-Type');
+        header_remove('Content-Length');
+        header('Content-Type: application/json');
+        return json_encode($envelope);
     }
 
 }

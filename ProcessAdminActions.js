@@ -63,6 +63,16 @@ $(document).ready(function(){
             if(bgTimer) { clearInterval(bgTimer); bgTimer = null; }
         }
 
+        function triggerDownload(data) {
+            var $a = $('<a>').attr({ href: data.url, download: data.filename }).hide();
+            $('body').append($a);
+            $a[0].click();
+            setTimeout(function() { $a.remove(); }, 100);
+            // jQuery .text() round-trip escapes filename for safe HTML insertion
+            var safeName = $('<div>').text(data.filename).html();
+            displayResult('<div class="adminActionsSuccess"><p>Your file download has started: <strong>' + safeName + '</strong></p></div>');
+        }
+
         function doCleanup(id, returnResult, callback) {
             $.ajax({
                 url: cleanupUrl,
@@ -100,7 +110,9 @@ $(document).ready(function(){
                     if(bgTimer) { clearInterval(bgTimer); bgTimer = null; }
                     // Fetch full result from cleanup endpoint
                     doCleanup(id, true, function(result) {
-                        if(result && result.output) {
+                        if(result && result.status === 'download') {
+                            triggerDownload(result);
+                        } else if(result && result.output) {
                             displayResult(result.output);
                         } else {
                             showError('Error fetching results');
@@ -151,7 +163,9 @@ $(document).ready(function(){
                 inlineDelivered = true;
                 if(pollingActive) { stopPolling = true; }
 
-                if(typeof data === 'object' && data.output) {
+                if(typeof data === 'object' && data.status === 'download') {
+                    triggerDownload(data);
+                } else if(typeof data === 'object' && data.output) {
                     displayResult(data.output);
                 } else if(typeof data === 'string') {
                     displayResult(data);
