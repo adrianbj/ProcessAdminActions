@@ -16,7 +16,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '1.0.1',
+            'version' => '1.0.2',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'wrench',
@@ -51,6 +51,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
     protected $noPermissionMessage = 'Sorry, you do not have permission to use this action.';
     protected $processPageUrl;
     protected $newActionsCount = 0;
+    protected $downloadStaged = false;
 
 
     /**
@@ -362,8 +363,74 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                     }
                 }
 
-                // Install output buffer to capture file-download responses transparently.
-                // The callback runs at final flush (including via PHP shutdown after exit()).
+                // Primary download capture: hook WireHttp::sendFile to short-circuit it and
+                // stage the file ourselves. PW's sendFile() calls @ob_end_clean() before output
+                // (WireHttp.php ~1532) which would silently discard the ob_start() buffer below
+                // without invoking its callback, so capturing $files->send() requires intercepting
+                // upstream of the buffer teardown.
+                $this->addHookBefore('WireHttp::sendFile', function($event) use ($runId, $runStatusDir, $runCacheDir) {
+                    $filename = $event->arguments(0);
+                    $options  = $event->arguments(1);
+                    if(!is_array($options)) $options = array();
+
+                    if($filename === false) {
+                        // data mode: sendFile() requires downloadFilename + data
+                        $downloadName = isset($options['downloadFilename']) ? basename($options['downloadFilename']) : '';
+                        if(!$downloadName) return; // let original sendFile() throw its own WireException
+                        $payload = isset($options['data']) ? $options['data'] : '';
+                    } else {
+                        $base = (isset($options['downloadFilename']) && $options['downloadFilename'] !== '')
+                            ? $options['downloadFilename']
+                            : pathinfo($filename, PATHINFO_BASENAME);
+                        $downloadName = basename($base);
+                        $payload = null; // sentinel: copy from $filename
+                    }
+                    if(!$downloadName) return;
+
+                    $ext = strtolower(pathinfo($downloadName, PATHINFO_EXTENSION));
+                    $cts = $this->wire('config')->fileContentTypes;
+                    $contentType = isset($cts[$ext]) ? $cts[$ext] : (isset($cts['?']) ? $cts['?'] : 'application/octet-stream');
+                    $contentType = ltrim($contentType, '+');
+
+                    $dir = $this->wire('config')->paths->cache . 'AdminActions/downloads/' . $runId . '/';
+                    if(!is_dir($dir) && !wireMkdir($dir, true)) return; // fall through to original sendFile()
+                    $dest = $dir . $downloadName;
+                    $ok = $payload === null ? @copy($filename, $dest) : (file_put_contents($dest, $payload) !== false);
+                    if(!$ok) return;
+
+                    if(file_put_contents($dest . '.meta.json', json_encode(array('contentType' => $contentType))) === false) {
+                        $this->wire('log')->error('AdminActions: failed to write download sidecar at ' . $dest . '.meta.json');
+                    }
+
+                    $envelope = array(
+                        'status'      => 'download',
+                        'url'         => $this->processPageUrl . 'download/?runId=' . urlencode($runId) . '&filename=' . urlencode($downloadName),
+                        'filename'    => $downloadName,
+                        'contentType' => $contentType,
+                    );
+                    // Cache first, then flip status — polling clients gate on status
+                    file_put_contents($runCacheDir . $runId . '.json', json_encode($envelope));
+                    file_put_contents($runStatusDir . $runId . '.json', json_encode(array('status' => 'complete')));
+
+                    $this->downloadStaged = true;
+
+                    // Discard the ob_start buffer below and any prior download-style headers,
+                    // then write the JSON envelope as the inline AJAX response body.
+                    while(ob_get_level()) ob_end_clean();
+                    header_remove('Content-Disposition');
+                    header_remove('Content-Length');
+                    header('Content-Type: application/json');
+                    echo json_encode($envelope);
+
+                    $event->replace = true;
+                    $event->return  = $payload === null ? filesize($filename) : strlen($payload);
+
+                    $exitOpt = isset($options['exit']) ? $options['exit'] : true;
+                    if($exitOpt) exit;
+                });
+
+                // Fallback download capture: catches actions that hand-roll
+                // header('Content-Disposition: attachment') + echo/readfile instead of using $files->send().
                 ob_start(function($buffer, $phase) use ($runId, $runStatusDir, $runCacheDir) {
                     return $this->handleOutputBuffer($buffer, $phase, $runId, $runStatusDir, $runCacheDir);
                 });
@@ -391,13 +458,18 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             }
         }
 
-        // Write result to files and return JSON for background execution
+        // Write result to files and return JSON for background execution.
+        // Skip the success write when the sendFile hook already staged a download envelope —
+        // an action that called $files->send(['exit' => false]) and kept running would otherwise
+        // overwrite the 'download' envelope with a 'complete' success message here.
         if($runId) {
-            $resultData = array('status' => 'complete', 'output' => $resultHtml);
-            file_put_contents($runCacheDir . $runId . '.json', json_encode($resultData));
-            file_put_contents($runStatusDir . $runId . '.json', json_encode(array('status' => 'complete')));
-            header('Content-Type: application/json');
-            echo json_encode($resultData);
+            if(!$this->downloadStaged) {
+                $resultData = array('status' => 'complete', 'output' => $resultHtml);
+                file_put_contents($runCacheDir . $runId . '.json', json_encode($resultData));
+                file_put_contents($runStatusDir . $runId . '.json', json_encode(array('status' => 'complete')));
+                header('Content-Type: application/json');
+                echo json_encode($resultData);
+            }
             exit;
         }
 
