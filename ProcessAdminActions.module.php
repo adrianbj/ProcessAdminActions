@@ -504,6 +504,14 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             exit;
         }
         $runId = preg_replace('/[^a-zA-Z0-9_.]/', '', $runId);
+        // Reject dot-only / containing-".." runIds. preg_replace above strips
+        // slashes but lets dots through, so without this check a runId of ".."
+        // would let unlink() target files outside the runs/ directory.
+        if($runId === '' || $runId === '.' || $runId === '..' || strpos($runId, '..') !== false) {
+            header('Content-Type: application/json');
+            echo json_encode(array('status' => 'error', 'output' => 'Invalid run ID'));
+            exit;
+        }
 
         $statusDir = $this->wire('config')->paths->assets . 'AdminActions/runs/';
         $cacheDir = $this->wire('config')->paths->cache . 'AdminActions/runs/';
@@ -535,16 +543,29 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         }
 
         $runId = preg_replace('/[^a-zA-Z0-9_.]/', '', $this->wire('input')->get->runId);
-        if(!$runId) throw new Wire404Exception();
+        // Reject dot-only / containing-".." runIds. preg_replace above strips
+        // slashes but lets dots through, so without this check a runId of ".."
+        // would resolve $dir up to cache/AdminActions/ and let an admin-actions
+        // user read arbitrary files in that tree via the basename'd filename.
+        if(!$runId || $runId === '.' || $runId === '..' || strpos($runId, '..') !== false) {
+            throw new Wire404Exception();
+        }
 
         $rawFilename = $this->wire('input')->get->filename;
         if(!$rawFilename) throw new Wire404Exception();
         $filename = basename($rawFilename);
         if(!$filename || $filename === '.' || $filename === '..') throw new Wire404Exception();
 
+        $base = realpath($this->wire('config')->paths->cache . 'AdminActions/downloads');
         $dir = $this->wire('config')->paths->cache . 'AdminActions/downloads/' . $runId . '/';
         $path = $dir . $filename;
-        if(!file_exists($path)) throw new Wire404Exception();
+        // realpath() returns false for missing files (covering the not-found case)
+        // and a normalized absolute path otherwise. Confine to the downloads dir
+        // regardless of any sanitization slip above.
+        $realPath = realpath($path);
+        if(!$base || !$realPath || strncmp($realPath, $base . DIRECTORY_SEPARATOR, strlen($base) + 1) !== 0) {
+            throw new Wire404Exception();
+        }
 
         $contentType = 'application/octet-stream';
         $metaPath = $path . '.meta.json';
