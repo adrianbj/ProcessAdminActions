@@ -16,7 +16,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '1.0.2',
+            'version' => '1.0.3',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'wrench',
