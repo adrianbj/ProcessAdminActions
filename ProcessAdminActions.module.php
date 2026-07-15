@@ -16,7 +16,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '1.0.3',
+            'version' => '1.0.4',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'wrench',
@@ -139,9 +139,13 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             $actionName = $this->wire('input')->get->action;
             $userRoleIds = $this->wire('user')->roles->each("id");
             if(isset($this->actionTypes[$actionName]) && isset($this->data[$this->actionTypes[$actionName]][$actionName]['roles']) && count(array_intersect($this->data[$this->actionTypes[$actionName]][$actionName]['roles'], $userRoleIds)) !== 0) {
-                $this->includeAndInstantiate($actionName);
-                $this->hasPermission = true;
-                $this->addHookAfter('Process::breadcrumb', $this, 'modifyBreadcrumb');
+                if($this->includeAndInstantiate($actionName)) {
+                    $this->hasPermission = true;
+                    $this->addHookAfter('Process::breadcrumb', $this, 'modifyBreadcrumb');
+                }
+                else {
+                    $this->noPermissionMessage = sprintf($this->_('The file for the %s action is missing. Re-save the module config settings to remove it from the list of available actions.'), $actionName);
+                }
             }
             else {
                 return $this->noPermissionMessage;
@@ -823,6 +827,8 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
     private function includeAndInstantiate($actionName) {
         $actionPath = $this->getActionPath($actionName);
+        // the action file may be missing, eg deleted while still referenced in the module config settings
+        if(!$actionPath || !file_exists($actionPath)) return false;
         $ns = $this->wire('files')->getNamespace($actionPath);
         // if the action is in the root namespace, then we need to compile it
         if($ns === '\\') {
@@ -848,6 +854,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             $this->wire('files')->includeOnce($actionPath);
         }
         $this->action = new $nsClass();
+        return true;
     }
 
 
@@ -876,7 +883,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                 if(!preg_match('/^([A-Z][a-zA-Z0-9_]+)\.action\.php$/', $basename, $matches)) continue;
                 $actionName = $matches[1];
                 if($instantiate) {
-                    $this->includeAndInstantiate($actionName);
+                    if(!$this->includeAndInstantiate($actionName)) continue;
                     $this->actions[$actionType][$actionName]['title'] = $this->action->title ?: $this->getInfoFieldValues($actionName, 'title');
                     $this->actions[$actionType][$actionName]['description'] = $this->action->description ?: $this->getInfoFieldValues($actionName, 'summary');
                     $this->actions[$actionType][$actionName]['notes'] = $this->action->notes ?: $this->getInfoFieldValues($actionName, 'notes');
