@@ -16,7 +16,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '1.0.4',
+            'version' => '1.0.5',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'wrench',
@@ -300,13 +300,19 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                 // Release TracyDebugger's FileSession lock if present — it holds LOCK_EX
                 // for the entire request and blocks other tabs sharing the tracy-session cookie
                 if(class_exists('Tracy\Debugger', false)) {
-                    $tracySessionStorage = \Tracy\Debugger::getSessionStorage();
-                    if($tracySessionStorage instanceof \Tracy\FileSession) {
-                        $ref = new \ReflectionProperty($tracySessionStorage, 'file');
-                        $fileHandle = $ref->getValue($tracySessionStorage);
-                        if(is_resource($fileHandle)) {
-                            flock($fileHandle, LOCK_UN);
+                    try {
+                        $tracySessionStorage = \Tracy\Debugger::getSessionStorage();
+                        if($tracySessionStorage instanceof \Tracy\FileSession) {
+                            $ref = new \ReflectionProperty($tracySessionStorage, 'file');
+                            // required on PHP < 8.1 to read a private property; a no-op since 8.1 and deprecated in 8.5
+                            if(PHP_VERSION_ID < 80100) $ref->setAccessible(true);
+                            $fileHandle = $ref->getValue($tracySessionStorage);
+                            if(is_resource($fileHandle)) {
+                                flock($fileHandle, LOCK_UN);
+                            }
                         }
+                    } catch(\Throwable $e) {
+                        // Tracy internals changed - releasing the lock is an optimization, not a requirement
                     }
                 }
 
