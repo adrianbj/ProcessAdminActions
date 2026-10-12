@@ -16,7 +16,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '1.0.6',
+            'version' => '1.0.7',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'wrench',
@@ -888,6 +888,9 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                 if(strpos($basename, '.action') === false) continue;
                 if(!preg_match('/^([A-Z][a-zA-Z0-9_]+)\.action\.php$/', $basename, $matches)) continue;
                 $actionName = $matches[1];
+                // only accept the locations getActionPath() can resolve, eg ignore files in an "old" subfolder
+                $fileDir = rtrim(str_replace('\\', '/', $file->getPath()), '/') . '/';
+                if($fileDir !== $folderPath && $fileDir !== $folderPath . $actionName . '/') continue;
                 if($instantiate) {
                     if(!$this->includeAndInstantiate($actionName)) continue;
                     $this->actions[$actionType][$actionName]['title'] = $this->action->title ?: $this->getInfoFieldValues($actionName, 'title');
