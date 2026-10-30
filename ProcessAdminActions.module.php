@@ -16,7 +16,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '1.0.7',
+            'version' => '1.0.8',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'wrench',
@@ -1292,8 +1292,11 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         }
 
         // modify what is stored when settings saved so we can have the multidimensional array of data
-        $this->wire('modules')->addHookBefore('saveModuleConfigData', null, function($event) use ($allData) {
+        // hook saveConfig() rather than saveModuleConfigData() - newer cores (3.0.274+) call saveConfig() directly
+        // and older cores' saveModuleConfigData() is just a wrapper for it
+        $this->wire('modules')->addHookBefore('saveConfig', null, function($event) use ($allData) {
             if($this->wire('input')->get->name != $this) return;
+            if((string) $event->arguments(0) != $this || !is_array($event->arguments(1))) return;
 
             $this->wire()->errors('clear');
             $this->wire()->warnings('clear');
