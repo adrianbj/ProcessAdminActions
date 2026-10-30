@@ -16,7 +16,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '1.0.8',
+            'version' => '1.0.9',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'wrench',
@@ -296,6 +296,9 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                 if(!is_dir($runCacheDir)) wireMkdir($runCacheDir, true);
                 file_put_contents($runStatusDir . $runId . '.json', json_encode(array('status' => 'running')));
                 ignore_user_abort(true);
+                // Snapshot the session so changes the action makes to $session can be written back
+                // afterwards — closing it here means PHP would otherwise discard them
+                $sessionSnapshot = isset($_SESSION) ? $_SESSION : array();
                 session_write_close();
                 // Release TracyDebugger's FileSession lock if present — it holds LOCK_EX
                 // for the entire request and blocks other tabs sharing the tracy-session cookie
@@ -378,7 +381,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                 // (WireHttp.php ~1532) which would silently discard the ob_start() buffer below
                 // without invoking its callback, so capturing $files->send() requires intercepting
                 // upstream of the buffer teardown.
-                $this->addHookBefore('WireHttp::sendFile', function($event) use ($runId, $runStatusDir, $runCacheDir) {
+                $this->addHookBefore('WireHttp::sendFile', function($event) use ($runId, $runStatusDir, $runCacheDir, $sessionSnapshot) {
                     $filename = $event->arguments(0);
                     $options  = $event->arguments(1);
                     if(!is_array($options)) $options = array();
@@ -423,6 +426,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                     file_put_contents($runStatusDir . $runId . '.json', json_encode(array('status' => 'complete')));
 
                     $this->downloadStaged = true;
+                    $this->saveSessionChanges($sessionSnapshot);
 
                     // Discard the ob_start buffer below and any prior download-style headers,
                     // then write the JSON envelope as the inline AJAX response body.
@@ -473,6 +477,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         // an action that called $files->send(['exit' => false]) and kept running would otherwise
         // overwrite the 'download' envelope with a 'complete' success message here.
         if($runId) {
+            $this->saveSessionChanges($sessionSnapshot);
             if(!$this->downloadStaged) {
                 $resultData = array('status' => 'complete', 'output' => $resultHtml);
                 file_put_contents($runCacheDir . $runId . '.json', json_encode($resultData));
@@ -485,6 +490,38 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         return $resultHtml;
 
+    }
+
+    /**
+     * Reopen the session (closed for background execution) and write back
+     * only what the action changed, so concurrent polling requests aren't clobbered
+     *
+     * @param array $snapshot $_SESSION as it was when the session was closed
+     */
+    protected function saveSessionChanges(array $snapshot) {
+        $current = isset($_SESSION) ? $_SESSION : array();
+        if($current === $snapshot || session_status() !== PHP_SESSION_NONE || headers_sent()) return;
+        if(!@session_start()) return;
+        $_SESSION = $this->applySessionChanges($_SESSION, $snapshot, $current);
+        session_write_close();
+    }
+
+    /**
+     * Apply keys added/changed/removed between $before and $after onto $target, recursing into arrays
+     *
+     */
+    protected function applySessionChanges(array $target, array $before, array $after) {
+        foreach($after as $key => $value) {
+            if(array_key_exists($key, $before) && $before[$key] === $value) continue;
+            if(is_array($value) && isset($before[$key]) && is_array($before[$key]) && isset($target[$key]) && is_array($target[$key])) {
+                $target[$key] = $this->applySessionChanges($target[$key], $before[$key], $value);
+            }
+            else {
+                $target[$key] = $value;
+            }
+        }
+        foreach(array_diff_key($before, $after) as $key => $value) unset($target[$key]);
+        return $target;
     }
 
     /**
