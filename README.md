@@ -213,6 +213,16 @@ protected function executeAction($options) {
 * Anything you add to `$this->output` is collected across batches. The database backup only runs before the first batch.
 * When the action isn't run from the browser (eg. via the API, see below), `timeUp()` always returns false, and any `continueWith()` batches run one after another in the same request.
 
+### Running actions via CLI
+
+If your host cuts off long requests and you'd rather not change your actions to use batches, set **Execution mode** to **CLI** in the module settings (or add `protected $executionMode = 'cli';` to an action). When an action is run, the form is checked as usual, then the action is started in its own PHP CLI process, which no web request time limit applies to. The browser shows "Running in background…" and displays the result when it finishes.
+
+* It needs PHP's `proc_open()` function and a Linux or macOS server. The PHP CLI binary is detected automatically. If that doesn't work, set **PHP CLI path**.
+* The action runs as the user who submitted the form, with the same options. The database backup runs in the CLI process too.
+* Output from `bd()` / `bdb()` is shown with the result instead of in the Tracy bar, and `d()` / `db()` output appears as usual. This needs TracyDebugger 5.1.9 or later.
+* Changes the action makes to `$session` are not kept, because a CLI process has no browser session. File downloads sent with `$files->send()` work, but downloads sent by setting `Content-Disposition` headers yourself don't.
+* If the process can't be started, you get an error saying why. If it ends without finishing (eg. the server kills it), that is reported within about 30 seconds.
+
 ### Populating options via URL parameters
 
 You can also populate the option parameters via URL parameters. You should split multiple values with a "|" character.

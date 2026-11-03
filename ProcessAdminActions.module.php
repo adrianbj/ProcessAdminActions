@@ -48,6 +48,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
     protected $adminActionsCacheDir;
     protected $dbBackupFilename;
     protected $dbBackup;
+    protected $executionMode;
     protected $noPermissionMessage = 'Sorry, you do not have permission to use this action.';
     protected $processPageUrl;
     protected $newActionsCount = 0;
@@ -190,6 +191,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         }
 
         $this->dbBackup = isset($this->action->dbBackup) ? $this->action->dbBackup : (isset($this->data['dbBackup']) ? $this->data['dbBackup'] : 'automatic');
+        $this->executionMode = $this->getExecutionMode();
     }
 
 
@@ -230,6 +232,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'maxExecutionTime' => (int) ini_get('max_execution_time'),
             'pollUrl' => $this->wire('config')->urls->assets . 'AdminActions/runs/',
             'cleanupUrl' => $this->processPageUrl . 'cleanup/',
+            'aliveUrl' => $this->processPageUrl . 'alive/',
         ));
 
         $out = '<h2>'.$this->getActionTitle($this->wire('input')->get->action, $this->data[$this->actionTypes[$this->wire('input')->get->action]][$this->wire('input')->get->action]).'</h2>';
@@ -307,13 +310,18 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         // continuation batches of a batched run (backup was already done by batch 1)
         $batch = $this->wire('config')->ajax ? max(1, (int) $this->wire('input')->post->batch) : 1;
 
+        $wantBackup = $this->dbBackup == 'automatic' || ($this->dbBackup == 'optional' && $form->get("dbBackup")->value && (bool)$form->get("dbBackup")->value === true);
+
+        // CLI execution mode: hand the run to a separate CLI process (no web request time limit applies to it)
+        if($this->executionMode === 'cli' && $batch === 1 && $this->wire('config')->ajax && $this->wire('input')->post->runId && !$form->getErrors()) {
+            $this->startCliRun($this->wire('input')->post->runId, $wantBackup);
+        }
+
         // backup database before executing action
         $restoreLink = '';
-        if($batch === 1 && $this->dbBackup == 'automatic' || ($this->dbBackup == 'optional' && $form->get("dbBackup")->value && (bool)$form->get("dbBackup")->value === true)) {
+        if($batch === 1 && $wantBackup) {
             $this->backupDb();
-            if($this->wire('user')->isSuperuser() || $this->wire('user')->hasPermission('admin-actions-restore')) {
-                $restoreLink = '<br /><div class="adminActionsWarning"><p>If you find a problem with the changes, you can <a href="'.$this->processPageUrl.'#tab_restore">restore</a> the entire database.</p></div>';
-            }
+            $restoreLink = $this->getRestoreLink();
         }
 
         // if form errors, render the form without executing it
@@ -327,12 +335,9 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $runStatusDir = $this->wire('config')->paths->assets . 'AdminActions/runs/';
         $runCacheDir = $this->wire('config')->paths->cache . 'AdminActions/runs/';
         if($this->wire('config')->ajax && $this->wire('input')->post->runId) {
-            $runId = preg_replace('/[^a-zA-Z0-9_.]/', '', $this->wire('input')->post->runId);
+            $runId = $this->sanitizeRunId($this->wire('input')->post->runId);
             if($runId) {
-                if(!is_dir($runStatusDir)) wireMkdir($runStatusDir, true);
-                // written every run so installs with an outdated copy (no rewrite rule) get fixed - polling depends on it
-                file_put_contents($runStatusDir . '.htaccess', "Options -Indexes\n<IfModule mod_rewrite.c>\n    RewriteEngine On\n    RewriteRule ^(.+)\\.[0-9]+\\.json$ $1.json [L]\n</IfModule>\n<IfModule mod_headers.c>\n    Header set Cache-Control \"no-cache, no-store, must-revalidate\"\n</IfModule>\n");
-                if(!is_dir($runCacheDir)) wireMkdir($runCacheDir, true);
+                $this->prepareRunDirs();
                 file_put_contents($runStatusDir . $runId . '.json', json_encode(array('status' => 'running')));
                 ignore_user_abort(true);
                 // Snapshot the session so changes the action makes to $session can be written back
@@ -420,67 +425,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
                 // (WireHttp.php ~1532) which would silently discard the ob_start() buffer below
                 // without invoking its callback, so capturing $files->send() requires intercepting
                 // upstream of the buffer teardown.
-                $this->addHookBefore('WireHttp::sendFile', function($event) use ($runId, $runStatusDir, $runCacheDir, $sessionSnapshot) {
-                    $filename = $event->arguments(0);
-                    $options  = $event->arguments(1);
-                    if(!is_array($options)) $options = array();
-
-                    if($filename === false) {
-                        // data mode: sendFile() requires downloadFilename + data
-                        $downloadName = isset($options['downloadFilename']) ? basename($options['downloadFilename']) : '';
-                        if(!$downloadName) return; // let original sendFile() throw its own WireException
-                        $payload = isset($options['data']) ? $options['data'] : '';
-                    } else {
-                        $base = (isset($options['downloadFilename']) && $options['downloadFilename'] !== '')
-                            ? $options['downloadFilename']
-                            : pathinfo($filename, PATHINFO_BASENAME);
-                        $downloadName = basename($base);
-                        $payload = null; // sentinel: copy from $filename
-                    }
-                    if(!$downloadName) return;
-
-                    $ext = strtolower(pathinfo($downloadName, PATHINFO_EXTENSION));
-                    $cts = $this->wire('config')->fileContentTypes;
-                    $contentType = isset($cts[$ext]) ? $cts[$ext] : (isset($cts['?']) ? $cts['?'] : 'application/octet-stream');
-                    $contentType = ltrim($contentType, '+');
-
-                    $dir = $this->wire('config')->paths->cache . 'AdminActions/downloads/' . $runId . '/';
-                    if(!is_dir($dir) && !wireMkdir($dir, true)) return; // fall through to original sendFile()
-                    $dest = $dir . $downloadName;
-                    $ok = $payload === null ? @copy($filename, $dest) : (file_put_contents($dest, $payload) !== false);
-                    if(!$ok) return;
-
-                    if(file_put_contents($dest . '.meta.json', json_encode(array('contentType' => $contentType))) === false) {
-                        $this->wire('log')->error('AdminActions: failed to write download sidecar at ' . $dest . '.meta.json');
-                    }
-
-                    $envelope = array(
-                        'status'      => 'download',
-                        'url'         => $this->processPageUrl . 'download/?runId=' . urlencode($runId) . '&filename=' . urlencode($downloadName),
-                        'filename'    => $downloadName,
-                        'contentType' => $contentType,
-                    );
-                    // Cache first, then flip status — polling clients gate on status
-                    file_put_contents($runCacheDir . $runId . '.json', json_encode($envelope));
-                    file_put_contents($runStatusDir . $runId . '.json', json_encode(array('status' => 'complete')));
-
-                    $this->downloadStaged = true;
-                    $this->saveSessionChanges($sessionSnapshot);
-
-                    // Discard the ob_start buffer below and any prior download-style headers,
-                    // then write the JSON envelope as the inline AJAX response body.
-                    while(ob_get_level()) ob_end_clean();
-                    header_remove('Content-Disposition');
-                    header_remove('Content-Length');
-                    header('Content-Type: application/json');
-                    echo json_encode($envelope);
-
-                    $event->replace = true;
-                    $event->return  = $payload === null ? filesize($filename) : strlen($payload);
-
-                    $exitOpt = isset($options['exit']) ? $options['exit'] : true;
-                    if($exitOpt) exit;
-                });
+                $this->addDownloadCaptureHook($runId, $runStatusDir, $runCacheDir, $sessionSnapshot);
 
                 // Fallback download capture: catches actions that hand-roll
                 // header('Content-Disposition: attachment') + echo/readfile instead of using $files->send().
@@ -558,13 +503,13 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         }
 
         if($success && !$form->getErrors()) {
-            $resultHtml = $heading . $this->action->output . '<div class="adminActionsSuccess">' . ($this->action->successMessage == '' ? '<p>The '.$actionTitle.' action was completed successfully.</p>' : '<p>' . $this->action->successMessage . '</p>') . '</div>' . $restoreLink;
+            $resultHtml = $heading . $this->getResultHtml(true, $actionTitle, $restoreLink);
         }
         // execution errors so return the failure message and render the form again
         else {
             if($runId) {
                 // background mode: don't render the form (user can't interact with it via AJAX)
-                $resultHtml = $this->action->output . ($this->action->failureMessage ? '<div class="adminActionsError"><p>' . $this->action->failureMessage . '</p></div>' : '<div class="adminActionsError"><p>Sorry, the '.$actionTitle.' action could not be completed successfully.</p></div>') . $restoreLink;
+                $resultHtml = $this->getResultHtml(false, $actionTitle, $restoreLink);
             }
             else {
                 $this->wire()->error('Sorry, the '.$actionTitle.' action could not be completed successfully.');
@@ -590,6 +535,393 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         return $resultHtml;
 
+    }
+
+    /**
+     * Execution mode for the current action: 'browser' or 'cli'.
+     * An action can override the module setting with: protected $executionMode = 'browser' or 'cli';
+     *
+     * @return string
+     */
+    private function getExecutionMode() {
+        $mode = isset($this->action->executionMode) ? $this->action->executionMode : (isset($this->data['executionMode']) ? $this->data['executionMode'] : 'browser');
+        return $mode === 'cli' ? 'cli' : 'browser';
+    }
+
+    /**
+     * Sanitize a run ID from the browser; returns blank if invalid
+     *
+     * @param string $runId
+     * @return string
+     */
+    private function sanitizeRunId($runId) {
+        $runId = preg_replace('/[^a-zA-Z0-9_.]/', '', (string) $runId);
+        if($runId === '.' || $runId === '..' || strpos($runId, '..') !== false) return '';
+        return $runId;
+    }
+
+    /**
+     * Create the run status (web accessible, for polling) and run cache (private) directories
+     *
+     * @return array [statusDir, cacheDir]
+     */
+    private function prepareRunDirs() {
+        $runStatusDir = $this->wire('config')->paths->assets . 'AdminActions/runs/';
+        $runCacheDir = $this->wire('config')->paths->cache . 'AdminActions/runs/';
+        if(!is_dir($runStatusDir)) wireMkdir($runStatusDir, true);
+        // written every run so installs with an outdated copy (no rewrite rule) get fixed - polling depends on it
+        file_put_contents($runStatusDir . '.htaccess', "Options -Indexes\n<IfModule mod_rewrite.c>\n    RewriteEngine On\n    RewriteRule ^(.+)\\.[0-9]+\\.json$ $1.json [L]\n</IfModule>\n<IfModule mod_headers.c>\n    Header set Cache-Control \"no-cache, no-store, must-revalidate\"\n</IfModule>\n");
+        if(!is_dir($runCacheDir)) wireMkdir($runCacheDir, true);
+        return array($runStatusDir, $runCacheDir);
+    }
+
+    /**
+     * Restore link shown after an action that made a DB backup, for users allowed to restore
+     *
+     * @return string
+     */
+    private function getRestoreLink() {
+        if(!$this->wire('user')->isSuperuser() && !$this->wire('user')->hasPermission('admin-actions-restore')) return '';
+        return '<br /><div class="adminActionsWarning"><p>If you find a problem with the changes, you can <a href="'.$this->processPageUrl.'#tab_restore">restore</a> the entire database.</p></div>';
+    }
+
+    /**
+     * Result HTML for a background (AJAX or CLI) run: the action's output plus its success/failure message
+     *
+     * @param bool $success
+     * @param string $actionTitle
+     * @param string $restoreLink
+     * @return string
+     */
+    private function getResultHtml($success, $actionTitle, $restoreLink) {
+        if($success) {
+            $message = $this->action->successMessage == '' ? 'The '.$actionTitle.' action was completed successfully.' : $this->action->successMessage;
+            return $this->action->output . '<div class="adminActionsSuccess"><p>' . $message . '</p></div>' . $restoreLink;
+        }
+        $message = $this->action->failureMessage ?: 'Sorry, the '.$actionTitle.' action could not be completed successfully.';
+        return $this->action->output . '<div class="adminActionsError"><p>' . $message . '</p></div>' . $restoreLink;
+    }
+
+    /**
+     * Write a background run's result: cache file first, then flip the status file (polling gates on status)
+     *
+     * @param string $runId
+     * @param array $result
+     */
+    private function writeRunResult($runId, array $result) {
+        list($runStatusDir, $runCacheDir) = $this->prepareRunDirs();
+        file_put_contents($runCacheDir . $runId . '.json', json_encode($result));
+        file_put_contents($runStatusDir . $runId . '.json', json_encode(array('status' => $result['status'] === 'error' ? 'error' : 'complete')));
+    }
+
+    /**
+     * Respond to the browser's AJAX request with JSON and end the request
+     *
+     * @param array $data
+     */
+    private function sendJson(array $data) {
+        while(ob_get_level()) ob_end_clean();
+        header('Content-Type: application/json');
+        echo json_encode($data);
+        exit;
+    }
+
+    /**
+     * Start the action in a separate CLI process and tell the browser to poll for the result.
+     * Called from ___executeRun() after the form has been validated. Always ends the request.
+     *
+     * @param string $runId
+     * @param bool $wantBackup
+     */
+    private function startCliRun($runId, $wantBackup) {
+        $runId = $this->sanitizeRunId($runId);
+        if(!$runId) $this->sendJson(array('status' => 'error', 'output' => '<div class="adminActionsError"><p>Invalid run ID</p></div>'));
+        list($runStatusDir, $runCacheDir) = $this->prepareRunDirs();
+
+        $post = $this->wire('input')->post->getArray();
+        unset($post['runId'], $post['batch']);
+        $actionName = $this->wire('input')->get->action;
+        $job = array(
+            'action' => $actionName,
+            'userId' => $this->wire('user')->id,
+            'post' => $post,
+            'backup' => (bool) $wantBackup,
+            // only hand Tracy dumps to users who can see them in the browser
+            'tracyDumps' => class_exists('\ProcessWire\TracyDebugger', false) && TracyDebugger::$allowedTracyUser === 'development',
+        );
+        $jobFile = $runCacheDir . $runId . '.job.json';
+        file_put_contents($jobFile, json_encode($job));
+        file_put_contents($runStatusDir . $runId . '.json', json_encode(array('status' => 'running')));
+
+        $error = $this->spawnCliRunner($runId);
+
+        // The runner removes the job file as soon as it has loaded ProcessWire and read it, which is
+        // how we know it started. Wait for that so a process that never starts gives a clear error.
+        if(!$error) {
+            $waitUntil = microtime(true) + 15;
+            while(is_file($jobFile) && microtime(true) < $waitUntil) {
+                usleep(200000);
+                clearstatcache(true, $jobFile);
+            }
+            // unlink succeeding means the runner never picked the job up (and now won't)
+            if(@unlink($jobFile)) {
+                $log = is_file($runCacheDir . $runId . '.log') ? trim((string) file_get_contents($runCacheDir . $runId . '.log')) : '';
+                $error = 'The CLI process did not start within 15 seconds.' . ($log !== '' ? ' It reported: ' . substr($log, -2000) : '');
+            }
+        }
+        else {
+            @unlink($jobFile);
+        }
+
+        if($error) {
+            $result = array('status' => 'error', 'output' => '<div class="adminActionsError"><p>' . htmlspecialchars($error, ENT_QUOTES, 'UTF-8') . '</p><p>Check the PHP CLI path in the Admin Actions module settings, or change the Execution mode back to Browser.</p></div>');
+            $this->writeRunResult($runId, $result);
+            $this->sendJson($result);
+        }
+        $this->sendJson(array('status' => 'background'));
+    }
+
+    /**
+     * Launch cli-runner.php as a detached background process
+     *
+     * @param string $runId
+     * @return string Error message, or blank on success
+     */
+    private function spawnCliRunner($runId) {
+        if(!function_exists('proc_open')) return 'Running actions via CLI needs PHP\'s proc_open() function, which is disabled on this server.';
+        $php = $this->getPhpCliPath();
+        if(!$php) return 'Unable to find the PHP CLI binary.';
+        $runCacheDir = $this->wire('config')->paths->cache . 'AdminActions/runs/';
+        $cmd = escapeshellarg($php) . ' ' . escapeshellarg(__DIR__ . '/cli-runner.php') . ' ' . escapeshellarg($runId) . ' ' . escapeshellarg($this->wire('config')->paths->root);
+        // & with HUP ignored (what nohup does - but nohup itself refuses to run without a console on macOS)
+        // detaches it from this request; setsid (where available) also moves it out of the web server's
+        // process group so it isn't killed along with the request
+        $setsid = @is_executable('/usr/bin/setsid') ? '/usr/bin/setsid ' : '';
+        $cmd = "trap '' HUP; " . $setsid . $cmd . ' > /dev/null 2>> ' . escapeshellarg($runCacheDir . $runId . '.log') . ' &';
+        $process = @proc_open($cmd, array(0 => array('file', '/dev/null', 'r'), 1 => array('file', '/dev/null', 'w'), 2 => array('file', '/dev/null', 'w')), $pipes);
+        if(!is_resource($process)) return 'Unable to start the CLI process (proc_open() failed).';
+        proc_close($process); // returns as soon as the shell has backgrounded the runner
+        return '';
+    }
+
+    /**
+     * Path to the PHP CLI binary: the module setting, or the "php" binary alongside the running PHP
+     *
+     * @return string
+     */
+    private function getPhpCliPath() {
+        if(!empty($this->data['phpCliPath'])) return $this->data['phpCliPath'];
+        // PHP_BINARY is the web SAPI (php-fpm, lsphp, etc) here, so look for the CLI binary next to it
+        foreach(array(PHP_BINDIR . '/php', dirname(PHP_BINARY) . '/php', '/usr/local/bin/php', '/usr/bin/php') as $path) {
+            if(@is_file($path) && @is_executable($path)) return $path;
+        }
+        return 'php'; // rely on PATH
+    }
+
+    /**
+     * Run a job started by startCliRun(). Called by cli-runner.php in the CLI process.
+     *
+     * @param string $runId
+     */
+    public function runCliJob($runId) {
+        if(PHP_SAPI !== 'cli') throw new WirePermissionException('CLI only');
+        $runId = $this->sanitizeRunId($runId);
+        if(!$runId) return;
+        list($runStatusDir, $runCacheDir) = $this->prepareRunDirs();
+        $jobFile = $runCacheDir . $runId . '.job.json';
+        $job = is_file($jobFile) ? json_decode((string) file_get_contents($jobFile), true) : null;
+        // removing the job file tells the web request that started us that we're running; if it has already
+        // removed it itself (it gave up waiting) the run has been reported as failed, so don't run it
+        if(!is_array($job) || !@unlink($jobFile)) return;
+
+        file_put_contents($runStatusDir . $runId . '.json', json_encode(array('status' => 'running', 'pid' => getmypid())));
+
+        $this->downloadStaged = false;
+        register_shutdown_function(function() use ($runId, $runStatusDir) {
+            $status = json_decode((string) @file_get_contents($runStatusDir . $runId . '.json'), true);
+            if(isset($status['status']) && $status['status'] === 'running') {
+                $error = !empty($GLOBALS['adminActionsCliLastError']) ? $GLOBALS['adminActionsCliLastError'] : error_get_last();
+                $message = $error ? $error['message'] . ' in ' . str_replace($this->wire('config')->paths->root, '/', $error['file']) . ' on line ' . $error['line'] : 'The CLI process ended unexpectedly.';
+                $this->writeRunResult($runId, array('status' => 'error', 'output' => '<div class="adminActionsError"><p>Fatal error: ' . htmlspecialchars($message, ENT_QUOTES, 'UTF-8') . '</p></div>'));
+            }
+        });
+
+        try {
+            // act as the user who submitted the form
+            $user = $this->wire('users')->get((int) $job['userId']);
+            if(!$user->id) throw new WireException('The user who started this action no longer exists.');
+            $this->wire('users')->setCurrentUser($user);
+
+            $actionName = (string) $job['action'];
+            $info = isset($this->actionTypes[$actionName]) && isset($this->data[$this->actionTypes[$actionName]][$actionName]) ? $this->data[$this->actionTypes[$actionName]][$actionName] : null;
+            if(!$user->hasPermission('admin-actions') || !$info || empty($info['roles']) || !count(array_intersect($info['roles'], $user->roles->each('id')))) {
+                throw new WirePermissionException($this->noPermissionMessage);
+            }
+            if(!$this->includeAndInstantiate($actionName)) throw new WireException("The file for the $actionName action is missing.");
+            $this->wire('input')->get->action = $actionName;
+            $this->dbBackup = isset($this->action->dbBackup) ? $this->action->dbBackup : (isset($this->data['dbBackup']) ? $this->data['dbBackup'] : 'automatic');
+            $actionTitle = $this->getActionTitle($actionName, $info);
+
+            // rebuild the options from the submitted form, as the web request did (it already checked CSRF)
+            $form = $this->buildOptionsForm();
+            $form->protectCSRF = false;
+            $form->processInput(new WireInputData($job['post']));
+            $options = array();
+            foreach($form->getAll() as $field) $options[$field->name] = $field->value;
+
+            if(!empty($job['tracyDumps']) && class_exists('\ProcessWire\TracyDebugger', false) && method_exists('\ProcessWire\TracyDebugger', 'enableCliDumps')) {
+                TracyDebugger::enableCliDumps();
+            }
+
+            $restoreLink = '';
+            if(!empty($job['backup'])) {
+                $this->backupDb();
+                $restoreLink = $this->getRestoreLink();
+            }
+
+            $this->addDownloadCaptureHook($runId, $runStatusDir, $runCacheDir, null);
+            ob_start();
+            $exceptionHtml = '';
+            try {
+                $success = $this->runActionBatches($options);
+            } catch(\Throwable $e) {
+                $success = false;
+                $exceptionHtml = $this->handleActionException($e);
+            }
+            $printed = (string) ob_get_clean();
+            if($this->downloadStaged) return;
+            $this->action->output = $printed . $this->action->output . $this->getTracyDumpsHtml() . $exceptionHtml;
+            $this->writeRunResult($runId, array('status' => 'complete', 'output' => $this->getResultHtml($success && !$form->getErrors(), $actionTitle, $restoreLink)));
+        } catch(\Throwable $e) {
+            $this->writeRunResult($runId, array('status' => 'error', 'output' => $this->handleActionException($e)));
+        }
+    }
+
+    /**
+     * bd() dumps captured in a CLI run (see TracyDebugger::enableCliDumps()), rendered like Tracy's Dumps panel
+     *
+     * @return string
+     */
+    private function getTracyDumpsHtml() {
+        if(!class_exists('\ProcessWire\TracyDebugger', false) || empty(TracyDebugger::$dumpItems)) return '';
+        $out = '';
+        foreach(TracyDebugger::$dumpItems as $item) {
+            if(isset($item['title']) && $item['title'] != '') $out .= '<h2>' . htmlspecialchars($item['title'], ENT_QUOTES, 'UTF-8') . '</h2>';
+            $out .= $item['dump'];
+        }
+        TracyDebugger::$dumpItems = array();
+        return '<div class="adminActionsDumps"><p><strong>Tracy bar dumps</strong></p><div class="tracy-inner" style="height:auto !important"><div class="tracy-DumpPanel">' . $out . '</div></div></div>';
+    }
+
+    /**
+     * Executed when ./alive/ url is accessed: the browser checks a CLI run's process is still alive while
+     * polling, so a process killed by the server is reported instead of polling until the 1 hour cutoff
+     */
+    public function executeAlive() {
+        if(!$this->wire('config')->ajax) throw new Wire404Exception();
+        $runId = $this->sanitizeRunId($this->wire('input')->post->runId);
+        $statusFile = $this->wire('config')->paths->assets . 'AdminActions/runs/' . $runId . '.json';
+        $status = $runId && is_file($statusFile) ? json_decode((string) file_get_contents($statusFile), true) : null;
+        if(!is_array($status) || $status['status'] !== 'running' || empty($status['pid'])) $this->sendJson(array('alive' => null));
+        $alive = $this->processAlive((int) $status['pid']);
+        if($alive === false) {
+            // it may have just finished - only report it if the status still says running
+            clearstatcache(true, $statusFile);
+            $status = json_decode((string) file_get_contents($statusFile), true);
+            if(isset($status['status']) && $status['status'] === 'running') {
+                $this->writeRunResult($runId, array('status' => 'error', 'output' => '<div class="adminActionsError"><p>The action\'s CLI process ended before it finished - it may have been stopped by the server (eg. a CLI time or memory limit).</p></div>'));
+            }
+        }
+        $this->sendJson(array('alive' => $alive));
+    }
+
+    /**
+     * Whether a process is running: true/false, or null if this server gives no way to tell
+     *
+     * @param int $pid
+     * @return bool|null
+     */
+    private function processAlive($pid) {
+        if($pid < 1) return null;
+        if(function_exists('posix_kill')) {
+            if(@posix_kill($pid, 0)) return true;
+            // EPERM: it exists but belongs to another user
+            return function_exists('posix_get_last_error') && posix_get_last_error() === 1 ? true : false;
+        }
+        if(@is_dir('/proc/self')) return @is_dir('/proc/' . $pid);
+        return null;
+    }
+
+    /**
+     * Hook WireHttp::sendFile to short-circuit it and stage the file for the browser to fetch.
+     *
+     * @param string $runId
+     * @param string $runStatusDir
+     * @param string $runCacheDir
+     * @param array|null $sessionSnapshot Session snapshot to write changes back from (null when there's no session, eg. CLI)
+     */
+    private function addDownloadCaptureHook($runId, $runStatusDir, $runCacheDir, $sessionSnapshot) {
+        $this->addHookBefore('WireHttp::sendFile', function($event) use ($runId, $runStatusDir, $runCacheDir, $sessionSnapshot) {
+            $filename = $event->arguments(0);
+            $options  = $event->arguments(1);
+            if(!is_array($options)) $options = array();
+
+            if($filename === false) {
+                // data mode: sendFile() requires downloadFilename + data
+                $downloadName = isset($options['downloadFilename']) ? basename($options['downloadFilename']) : '';
+                if(!$downloadName) return; // let original sendFile() throw its own WireException
+                $payload = isset($options['data']) ? $options['data'] : '';
+            } else {
+                $base = (isset($options['downloadFilename']) && $options['downloadFilename'] !== '')
+                    ? $options['downloadFilename']
+                    : pathinfo($filename, PATHINFO_BASENAME);
+                $downloadName = basename($base);
+                $payload = null; // sentinel: copy from $filename
+            }
+            if(!$downloadName) return;
+
+            $ext = strtolower(pathinfo($downloadName, PATHINFO_EXTENSION));
+            $cts = $this->wire('config')->fileContentTypes;
+            $contentType = isset($cts[$ext]) ? $cts[$ext] : (isset($cts['?']) ? $cts['?'] : 'application/octet-stream');
+            $contentType = ltrim($contentType, '+');
+
+            $dir = $this->wire('config')->paths->cache . 'AdminActions/downloads/' . $runId . '/';
+            if(!is_dir($dir) && !wireMkdir($dir, true)) return; // fall through to original sendFile()
+            $dest = $dir . $downloadName;
+            $ok = $payload === null ? @copy($filename, $dest) : (file_put_contents($dest, $payload) !== false);
+            if(!$ok) return;
+
+            if(file_put_contents($dest . '.meta.json', json_encode(array('contentType' => $contentType))) === false) {
+                $this->wire('log')->error('AdminActions: failed to write download sidecar at ' . $dest . '.meta.json');
+            }
+
+            $envelope = array(
+                'status'      => 'download',
+                'url'         => $this->processPageUrl . 'download/?runId=' . urlencode($runId) . '&filename=' . urlencode($downloadName),
+                'filename'    => $downloadName,
+                'contentType' => $contentType,
+            );
+            // Cache first, then flip status — polling clients gate on status
+            file_put_contents($runCacheDir . $runId . '.json', json_encode($envelope));
+            file_put_contents($runStatusDir . $runId . '.json', json_encode(array('status' => 'complete')));
+
+            $this->downloadStaged = true;
+            if($sessionSnapshot !== null) $this->saveSessionChanges($sessionSnapshot);
+
+            // Discard the ob_start buffer below and any prior download-style headers,
+            // then write the JSON envelope as the inline AJAX response body.
+            while(ob_get_level()) ob_end_clean();
+            header_remove('Content-Disposition');
+            header_remove('Content-Length');
+            header('Content-Type: application/json');
+            echo json_encode($envelope);
+
+            $event->replace = true;
+            $event->return  = $payload === null ? filesize($filename) : strlen($payload);
+
+            $exitOpt = isset($options['exit']) ? $options['exit'] : true;
+            if($exitOpt) exit;
+        });
     }
 
     /**
@@ -698,6 +1030,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         @unlink($cacheFile);
         @unlink($statusDir . $runId . '.json');
+        @unlink($cacheDir . $runId . '.log');
         exit;
     }
 
@@ -1344,6 +1677,28 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $f->attr('checked', $showActionCode ? 'checked' : '' );
         $wrapper->add($f);
 
+        $f = $this->wire('modules')->get("InputfieldRadios");
+        $f->name = 'executionMode';
+        $f->label = __('Execution mode');
+        $f->description = __('"Browser" runs actions in the web request (with automatic background polling if it runs long). "CLI" starts each action in a separate PHP CLI process, so it isn\'t cut off by a host or proxy request time limit (eg. LiteSpeed\'s 120 seconds or Cloudflare\'s 100 seconds).');
+        $f->notes = __('CLI mode needs PHP\'s proc_open() function and a Linux/macOS server. Changes an action makes to $session are not kept, and dumps from bd() are shown with the result rather than in the Tracy bar. You can override this setting in an action with: protected $executionMode = "browser" or "cli".');
+        $f->addOption('browser', 'Browser');
+        $f->addOption('cli', 'CLI');
+        $f->optionColumns = 1;
+        $f->columnWidth = 50;
+        $f->attr('value', isset($data['executionMode']) ? $data['executionMode'] : 'browser');
+        $wrapper->add($f);
+
+        $f = $this->wire('modules')->get("InputfieldText");
+        $f->name = 'phpCliPath';
+        $f->label = __('PHP CLI path');
+        $f->description = __('Path to the PHP command line binary used in CLI mode. Leave blank to detect it.');
+        if(empty($data['phpCliPath'])) $f->notes = sprintf(__('Detected: %s'), $this->getPhpCliPath());
+        $f->showIf = 'executionMode=cli';
+        $f->columnWidth = 50;
+        $f->attr('value', isset($data['phpCliPath']) ? $data['phpCliPath'] : '');
+        $wrapper->add($f);
+
         $fieldset = $this->wire('modules')->get("InputfieldFieldset");
         $fieldset->name = 'instructions';
         $fieldset->label = __('Action settings');
@@ -1462,6 +1817,8 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
             $allData['dbBackup'] = $this->wire('input')->post->dbBackup;
             $allData['showActionCode'] = $this->wire('input')->post->showActionCode;
+            $allData['executionMode'] = $this->wire('input')->post->executionMode === 'cli' ? 'cli' : 'browser';
+            $allData['phpCliPath'] = trim((string) $this->wire('sanitizer')->text($this->wire('input')->post->phpCliPath));
             foreach($this->wire('input')->post as $action => $info) {
                 if (strpos($action, 'roles_') !== false) {
                     $action = str_replace('roles_', '', $action);

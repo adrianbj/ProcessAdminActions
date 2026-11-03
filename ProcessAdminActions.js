@@ -21,6 +21,7 @@ $(document).ready(function(){
     var maxExecTime = config.maxExecutionTime || 0;
     var pollUrl = config.pollUrl || '';
     var cleanupUrl = config.cleanupUrl || '';
+    var aliveUrl = config.aliveUrl || '';
     var xhrTimeout = maxExecTime > 0 ? Math.floor(maxExecTime * 0.8) * 1000 : 0;
 
     if(!pollUrl || !cleanupUrl) return;
@@ -67,6 +68,8 @@ $(document).ready(function(){
             stopTimer();
             $status.remove();
             $resultArea.html(html);
+            // lazy Tracy dumps (eg. bd() output from a CLI run) need initialising once in the DOM
+            if(window.Tracy && Tracy.Dumper) Tracy.Dumper.init($resultArea[0]);
         }
 
         function triggerDownload(data) {
@@ -121,6 +124,7 @@ $(document).ready(function(){
             var pollDelivered = false;
             var stopPolling = false;
             var inlineDelivered = false;
+            var pollCount = 0;
             pollingActive = false;
 
             var formData = new FormData(formEl);
@@ -145,6 +149,12 @@ $(document).ready(function(){
                     success: function(data) {
                         if(inlineDelivered || stopPolling) return;
                         if(data.status === 'running') {
+                            // every ~30s, have the server check a CLI run's process is still alive, so
+                            // one killed by the server is reported rather than polled for an hour
+                            pollCount++;
+                            if(aliveUrl && pollCount % 10 === 0) {
+                                $.ajax({ url: aliveUrl, method: 'POST', data: { runId: id }, headers: { 'X-Requested-With': 'XMLHttpRequest' }, dataType: 'json' });
+                            }
                             setTimeout(function() { pollForResults(id); }, 3000);
                             return;
                         }
@@ -186,6 +196,11 @@ $(document).ready(function(){
                 success: function(data) {
                     if(pollTimer) clearTimeout(pollTimer);
                     if(pollingActive && pollDelivered) return;
+                    // CLI execution mode: the action was started in its own process — poll for its result
+                    if(data && data.status === 'background') {
+                        startPolling();
+                        return;
+                    }
                     inlineDelivered = true;
                     if(pollingActive) { stopPolling = true; }
                     doCleanup(runId, false, function() { handleResult(data); });
