@@ -16,7 +16,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '1.0.9',
+            'version' => '1.1.0',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'wrench',
@@ -52,6 +52,43 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
     protected $processPageUrl;
     protected $newActionsCount = 0;
     protected $downloadStaged = false;
+
+    /**
+     * Batched execution (lets long actions get past host request time limits).
+     * Actions read $this->state (null on the first batch), check $this->timeUp() in their
+     * loop, and return $this->continueWith($state) to have the next batch run in a new request.
+     */
+    protected $state = null;
+    protected $batchTimeLimit = 90;
+    protected $batchStartTime = null;
+    protected $continueState = null;
+    protected $progressMessage = '';
+
+
+    /**
+     * True when this batch has used up its time budget ($batchTimeLimit seconds).
+     * Always false when the action isn't running as a browser AJAX run, since there's
+     * no request time limit to avoid in that case (eg. when called via the API).
+     *
+     * @return bool
+     */
+    protected function timeUp() {
+        if($this->batchStartTime === null) return false;
+        return (microtime(true) - $this->batchStartTime) >= $this->batchTimeLimit;
+    }
+
+    /**
+     * End this batch and have the action run again in a new request, with $this->state set to $state
+     *
+     * @param mixed $state Anything JSON-serializable (eg. array('offset' => 500))
+     * @param string $progress Optional text shown in the status line while running, eg. "Processed 500 of 2000 pages"
+     * @return bool
+     */
+    protected function continueWith($state, $progress = '') {
+        $this->continueState = $state === null ? array() : $state;
+        $this->progressMessage = (string) $progress;
+        return true;
+    }
 
 
     /**
@@ -267,9 +304,12 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             }
         }
 
+        // continuation batches of a batched run (backup was already done by batch 1)
+        $batch = $this->wire('config')->ajax ? max(1, (int) $this->wire('input')->post->batch) : 1;
+
         // backup database before executing action
         $restoreLink = '';
-        if($this->dbBackup == 'automatic' || ($this->dbBackup == 'optional' && $form->get("dbBackup")->value && (bool)$form->get("dbBackup")->value === true)) {
+        if($batch === 1 && $this->dbBackup == 'automatic' || ($this->dbBackup == 'optional' && $form->get("dbBackup")->value && (bool)$form->get("dbBackup")->value === true)) {
             $this->backupDb();
             if($this->wire('user')->isSuperuser() || $this->wire('user')->hasPermission('admin-actions-restore')) {
                 $restoreLink = '<br /><div class="adminActionsWarning"><p>If you find a problem with the changes, you can <a href="'.$this->processPageUrl.'#tab_restore">restore</a> the entire database.</p></div>';
@@ -289,10 +329,9 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         if($this->wire('config')->ajax && $this->wire('input')->post->runId) {
             $runId = preg_replace('/[^a-zA-Z0-9_.]/', '', $this->wire('input')->post->runId);
             if($runId) {
-                if(!is_dir($runStatusDir)) {
-                    wireMkdir($runStatusDir, true);
-                    file_put_contents($runStatusDir . '.htaccess', "Options -Indexes\n<IfModule mod_rewrite.c>\n    RewriteEngine On\n    RewriteRule ^(.+)\\.[0-9]+\\.json$ $1.json [L]\n</IfModule>\n<IfModule mod_headers.c>\n    Header set Cache-Control \"no-cache, no-store, must-revalidate\"\n</IfModule>\n");
-                }
+                if(!is_dir($runStatusDir)) wireMkdir($runStatusDir, true);
+                // written every run so installs with an outdated copy (no rewrite rule) get fixed - polling depends on it
+                file_put_contents($runStatusDir . '.htaccess', "Options -Indexes\n<IfModule mod_rewrite.c>\n    RewriteEngine On\n    RewriteRule ^(.+)\\.[0-9]+\\.json$ $1.json [L]\n</IfModule>\n<IfModule mod_headers.c>\n    Header set Cache-Control \"no-cache, no-store, must-revalidate\"\n</IfModule>\n");
                 if(!is_dir($runCacheDir)) wireMkdir($runCacheDir, true);
                 file_put_contents($runStatusDir . $runId . '.json', json_encode(array('status' => 'running')));
                 ignore_user_abort(true);
@@ -457,14 +496,75 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         // execute action and render output
         $heading = $runId ? '' : '<h2>' . $actionTitle . '</h2>';
-        if($this->action->executeAction($options) && !$form->getErrors()) {
+        if($runId) {
+            // Each batch of a batched run is its own request; state, output so far and the
+            // restore link are carried between them in a server-side file keyed by runId
+            $stateFile = $runCacheDir . $runId . '.state.json';
+            $priorOutput = '';
+            if($batch > 1) {
+                $saved = is_file($stateFile) ? json_decode(file_get_contents($stateFile), true) : null;
+                if(!is_array($saved) || !array_key_exists('state', $saved)) {
+                    $writeRunError('Unable to continue the action: the saved state from the previous batch is missing.');
+                    header('Content-Type: application/json');
+                    echo file_get_contents($runCacheDir . $runId . '.json');
+                    exit;
+                }
+                $this->action->state = $saved['state'];
+                $priorOutput = (string) $saved['output'];
+                $restoreLink = (string) $saved['restoreLink'];
+            }
+            // count from the start of the request so bootstrap/backup time is included
+            $this->action->batchStartTime = isset($_SERVER['REQUEST_TIME_FLOAT']) ? (float) $_SERVER['REQUEST_TIME_FLOAT'] : microtime(true);
+            $exceptionHtml = '';
+            try {
+                $success = $this->action->executeAction($options);
+            } catch(\Throwable $e) {
+                // Without this, PHP \Errors (eg. calling an undefined function) reach no logger and the
+                // browser only sees whatever output came before them, so the run looks like it silently failed
+                $success = false;
+                $this->action->continueState = null;
+                $exceptionHtml = $this->handleActionException($e);
+            }
+            // Anything the action printed (echo, var_dump, Tracy's d()/db()) would otherwise land in
+            // front of the JSON response and break it - show it with the action's output instead
+            $this->action->output = $this->takeStrayOutput() . $this->action->output . $exceptionHtml;
+
+            if($success && $this->action->continueState !== null && !$form->getErrors() && !$this->downloadStaged) {
+                $stateJson = json_encode(array(
+                    'state' => $this->action->continueState,
+                    'output' => $priorOutput . $this->action->output,
+                    'restoreLink' => $restoreLink,
+                ));
+                if($stateJson === false || file_put_contents($stateFile, $stateJson) === false) {
+                    $writeRunError('Unable to save the state passed to continueWith() - it must be JSON-serializable.');
+                    $this->saveSessionChanges($sessionSnapshot);
+                    header('Content-Type: application/json');
+                    echo file_get_contents($runCacheDir . $runId . '.json');
+                    exit;
+                }
+                $this->saveSessionChanges($sessionSnapshot);
+                $resultData = array('status' => 'continue', 'batch' => $batch, 'progress' => $this->action->progressMessage);
+                file_put_contents($runCacheDir . $runId . '.json', json_encode($resultData));
+                file_put_contents($runStatusDir . $runId . '.json', json_encode(array('status' => 'complete')));
+                header('Content-Type: application/json');
+                echo json_encode($resultData);
+                exit;
+            }
+            @unlink($stateFile);
+            $this->action->output = $priorOutput . $this->action->output;
+        }
+        else {
+            $success = $this->runActionBatches($options);
+        }
+
+        if($success && !$form->getErrors()) {
             $resultHtml = $heading . $this->action->output . '<div class="adminActionsSuccess">' . ($this->action->successMessage == '' ? '<p>The '.$actionTitle.' action was completed successfully.</p>' : '<p>' . $this->action->successMessage . '</p>') . '</div>' . $restoreLink;
         }
         // execution errors so return the failure message and render the form again
         else {
             if($runId) {
                 // background mode: don't render the form (user can't interact with it via AJAX)
-                $resultHtml = ($this->action->failureMessage ? '<div class="adminActionsError"><p>' . $this->action->failureMessage . '</p></div>' : '<div class="adminActionsError"><p>Sorry, the '.$actionTitle.' action could not be completed successfully.</p></div>') . $restoreLink;
+                $resultHtml = $this->action->output . ($this->action->failureMessage ? '<div class="adminActionsError"><p>' . $this->action->failureMessage . '</p></div>' : '<div class="adminActionsError"><p>Sorry, the '.$actionTitle.' action could not be completed successfully.</p></div>') . $restoreLink;
             }
             else {
                 $this->wire()->error('Sorry, the '.$actionTitle.' action could not be completed successfully.');
@@ -490,6 +590,28 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
 
         return $resultHtml;
 
+    }
+
+    /**
+     * Run the action in this request, running any continueWith() batches back-to-back.
+     * Used when there's no browser AJAX run to spread the batches across requests.
+     *
+     * @param array $options
+     * @return bool
+     */
+    protected function runActionBatches($options) {
+        $output = '';
+        $this->action->batchStartTime = null; // no request time limit to avoid, so timeUp() stays false
+        while(true) {
+            $this->action->continueState = null;
+            $success = $this->action->executeAction($options);
+            if(!$success || $this->action->continueState === null) break;
+            $output .= $this->action->output;
+            $this->action->output = '';
+            $this->action->state = $this->action->continueState;
+        }
+        $this->action->output = $output . $this->action->output;
+        return $success;
     }
 
     /**
@@ -1155,7 +1277,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
         $actionFilePath = $this->getActionPath($actionName);
         if(!file_exists($actionFilePath)) return parent::__call($actionName, $args);
         $this->includeAndInstantiate($actionName);
-        $this->action->executeAction($args[0]);
+        $this->runActionBatches($args[0]);
         if(!empty($args[0]['dbBackup'])) $this->backupDb();
     }
 
@@ -1362,6 +1484,42 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
      * Find a header by name in the current outgoing headers list.
      * Returns the trimmed value (everything after the first colon) or null.
      */
+    /**
+     * Log an exception/error thrown by an action during a background run (PW exceptions log, plus
+     * Tracy's log so the bluescreen is available in its Logs panel) and return HTML describing it
+     *
+     * @param \Throwable $e
+     * @return string
+     */
+    private function handleActionException(\Throwable $e) {
+        $file = str_replace($this->wire('config')->paths->root, '/', $e->getFile());
+        $this->wire('log')->save('exceptions', $e->getMessage() . " ($file:" . $e->getLine() . ')');
+        if(class_exists('Tracy\Debugger', false)) {
+            try {
+                \Tracy\Debugger::log($e, \Tracy\ILogger::EXCEPTION);
+            } catch(\Throwable $logError) {
+                // Tracy logging is a convenience - the error is still shown and in the PW log
+            }
+        }
+        $className = (new \ReflectionClass($e))->getShortName();
+        return '<div class="adminActionsError"><p>' . htmlspecialchars("$className: " . $e->getMessage() . " in $file on line " . $e->getLine(), ENT_QUOTES, 'UTF-8') . '</p></div>';
+    }
+
+    /**
+     * Take and clear whatever the action has printed into the background-run output buffer.
+     * Left alone when the action hand-rolled a file download (Content-Disposition: attachment),
+     * since handleOutputBuffer() needs that output to capture the file.
+     *
+     * @return string
+     */
+    private function takeStrayOutput() {
+        $disposition = $this->findHeader('Content-Disposition');
+        if($disposition && stripos($disposition, 'attachment') !== false) return '';
+        $output = (string) ob_get_contents();
+        if($output !== '') ob_clean();
+        return $output;
+    }
+
     private function findHeader($name) {
         $prefix = strtolower($name) . ':';
         $prefixLen = strlen($prefix);

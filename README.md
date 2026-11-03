@@ -192,6 +192,27 @@ There is one additional method that I didn't outline called: checkRequirements()
 
 At the end of the executeAction() method you can populate $this->successMessage, or $this->failureMessage which will be returned after the action has finished.
 
+### Long-running actions (batches)
+
+Some hosts end any request that runs longer than a fixed time (eg. 120 seconds on many LiteSpeed servers), no matter what PHP's time limit is. If your action loops over a lot of items, it can split the work into batches. Each batch runs in its own request and the browser starts the next one automatically:
+
+```php
+protected function executeAction($options) {
+    $pages = $this->wire()->pages->findIDs("template=product");
+    $i = $this->state ? $this->state['i'] : 0; // $this->state is null on the first batch
+    for(; $i < count($pages); $i++) {
+        if($this->timeUp()) return $this->continueWith(array('i' => $i), "Processed $i of " . count($pages));
+        // ... process $pages[$i] ...
+    }
+    return true;
+}
+```
+
+* `$this->timeUp()` returns true once the current batch has run for 90 seconds. Change the limit by adding `protected $batchTimeLimit = 60;` to your action.
+* `$this->continueWith($state, $progress)` ends the batch. `$state` can be anything JSON-serializable and is passed back as `$this->state` in the next batch. The optional `$progress` text is shown in the status line while the action runs.
+* Anything you add to `$this->output` is collected across batches. The database backup only runs before the first batch.
+* When the action isn't run from the browser (eg. via the API, see below), `timeUp()` always returns false, and any `continueWith()` batches run one after another in the same request.
+
 ### Populating options via URL parameters
 
 You can also populate the option parameters via URL parameters. You should split multiple values with a "|" character.
