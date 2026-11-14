@@ -231,11 +231,7 @@ You can either just pre-populate options:
 ```
 http://mysite.dev/processwire/setup/admin-actions/options?action=TemplateFieldsBatcher&templates=29|56&fields=219&addOrRemove=add
 ```
-or you can execute immediately:
-```
-http://mysite.dev/processwire/setup/admin-actions/run?action=TemplateFieldsBatcher&templates=29|56&fields=219&addOrRemove=add
-```
-Note the "options" vs "run" as the last path segment before the parameters.
+A link can't run an action by itself: a `run?...` link opens the same pre-populated options form, and the action runs when you submit it. (Running straight from a link meant anyone who got a logged-in user to follow one could run an action with options of their choosing.)
 
 ### Calling an action via the API
 

@@ -16,7 +16,7 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             'title' => 'Admin Actions',
             'summary' => 'Control panel for running various admin actions',
             'author' => 'Adrian Jones',
-            'version' => '1.1.0',
+            'version' => '1.1.1',
             'singular' => true,
             'autoload' => false,
             'icon'     => 'wrench',
@@ -272,30 +272,12 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             if($field->hasClass('required')) $i++;
         }
         $numGetParams = count($this->wire('input')->get);
-        if($numGetParams > 1 && $numGetParams === $i) {
-            $urlFields = new WireInputData();
-            foreach($this->wire('input')->get as $field => $value) {
-                // exclude fields that don't exist in the form, like the "action" url parameter
-                if(!is_object($form->get($field)) || !$form->get($field)->parent) continue;
-                // if field expects an array (multiple) then we need to convert the URL parameter
-                if($form->get($field)->multiple) {
-                    if(strpos($value, '|') !== false) {
-                        $value = explode('|', $value);
-                    }
-                    else {
-                        $value = array($value);
-                    }
-                }
-                $urlFields[$field] = $value;
-            }
-            // disable CSRF because we are using GET data
-            $form->protectCSRF = false;
-            $form->processInput($urlFields);
-            $form->protectCSRF = true;
-            foreach($form->getAll() as $field) {
-                $value = $form->get($field->name)->value;
-                $options[$field->name] = $value;
-            }
+        if($numGetParams > 1 && $numGetParams === $i && count($this->wire('input')->post) === 0) {
+            // A link can fill an action's options in, but can't run it: running from GET meant
+            // turning the CSRF check off, so a logged-in user who followed a crafted link ran
+            // the action with the link's options. The link opens the options form, filled in,
+            // and the run is the form's own POST.
+            $this->wire('session')->redirect('./options?' . $this->wire('input')->queryString());
         }
         elseif(count($this->wire('input')->post) === 0) {
             return '<h2>' . $actionTitle . '</h2><p>Some required form options are missing.</p>';
@@ -1181,6 +1163,8 @@ class ProcessAdminActions extends Process implements Module, ConfigurableModule 
             $tab->attr('class', 'WireTab');
 
             if($this->wire('input')->post->restoreConfirm) {
+                // restoring replaces the whole database, so the request must carry this session's token
+                $this->wire('session')->CSRF->validate();
                 $backup = new WireDatabaseBackup($this->adminActionsCacheDir);
                 $backup->setDatabase($this->wire('database'));
                 $backup->setDatabaseConfig($this->wire('config'));
