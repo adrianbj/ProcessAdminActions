@@ -64,6 +64,7 @@ table.AdminDataList.adminactions td:nth-child(4), table.AdminDataList.adminactio
 
 .adminActionsSuccess {
     background: #D1F486;
+    color: #354b60;
 }
 
 .adminActionsAuthor {
@@ -83,8 +84,14 @@ table.AdminDataList.adminactions td:nth-child(4), table.AdminDataList.adminactio
 
 /* Config settings styles */
 
-table.AdminDataList.adminactionsconfig tr.newAction, .AdminDataTable tr.newAction td:first-child {
+/* a tint rather than a solid fill, so the theme's own text and link colors stay readable in light and dark modes */
+table.AdminDataList.adminactionsconfig tr.newAction {
     background: #FFD15E;
+    background: color-mix(in srgb, #FFD15E 30%, transparent);
+}
+
+.AdminDataTable tr.newAction td:first-child {
+    box-shadow: inset 3px 0 0 #FFD15E;
 }
 
 table.AdminDataList.adminactionsconfig td:first-child, table.AdminDataList.adminactionsconfig th:first-child {
@@ -158,6 +165,7 @@ table.adminactionsconfig .asmListItem i:not(:hover) {
     padding: 15px;
     margin: 10px 0;
     background: #f0f0f0;
+    color: #333;
     border: 1px solid #ddd;
     border-radius: 3px;
     font-size: 14px;
